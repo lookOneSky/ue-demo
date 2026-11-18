@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>景点标牌</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: "Microsoft YaHei", "SimHei", sans-serif;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            padding: 20px;
+            width: 400px;
+            height: 300px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-radius: 10px;
+            border: 2px solid #E1BB82;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid #E1BB82;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .header:hover {
+            transform: scale(1.02);
+        }
+        
+        .title {
+            font-size: 24px;
+            color: #E1BB82;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            flex-grow: 1;
+            text-align: center;
+        }
+        
+        .logo {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            margin-right: 10px;
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .content {
+            flex-grow: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .info {
+            flex: 1;
+            padding-right: 15px;
+            transition: transform 0.3s;
+        }
+        
+        .info-row {
+            margin-bottom: 10px;
+            display: flex;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        .info-row:hover {
+            background-color: rgba(225, 187, 130, 0.2);
+        }
+        
+        .info-label {
+            color: #E1BB82;
+            width: 70px;
+            flex-shrink: 0;
+        }
+        
+        .info-value {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .info-detail {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            transform: translateY(-100%);
+            transition: transform 0.3s;
+            z-index: 1;
+        }
+        
+        .info-row:hover .info-detail {
+            transform: translateY(0);
+        }
+        
+        .image-container {
+            width: 150px;
+            height: 150px;
+            flex-shrink: 0;
+            border: 1px solid #E1BB82;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .image-slider {
+            display: flex;
+            transition: transform 0.5s;
+            height: 100%;
+        }
+        
+        .slider-item {
+            width: 150px;
+            height: 150px;
+            flex-shrink: 0;
+        }
+        
+        .slider-nav {
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 5px;
+            z-index: 2;
+        }
+        
+        .nav-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .nav-dot.active {
+            background-color: #E1BB82;
+        }
+        
+        .footer {
+            margin-top: 15px;
+            border-top: 1px solid #E1BB82;
+            padding-top: 10px;
+            font-size: 12px;
+            text-align: center;
+            color: #E1BB82;
+            cursor: pointer;
+            transition: color 0.3s;
+        }
+        
+        .footer:hover {
+            color: #fff;
+        }
+        
+        .weather-info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        body:hover .weather-info {
+            opacity: 1;
+        }
+        
+        .minimize-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: rgba(225, 187, 130, 0.3);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.3s;
+        }
+        
+        .minimize-btn:hover {
+            background-color: rgba(225, 187, 130, 0.5);
+        }
+        
+        .minimized {
+            height: 60px !important;
+        }
+        
+        .minimized .content,
+        .minimized .footer {
+            display: none;
+        }
+        
+        /* 添加调试按钮样式 */
+        .debug-btn {
+            margin: 10px auto;
+            padding: 5px 15px;
+            background: rgba(225, 187, 130, 0.2);
+            border: 1px solid #E1BB82;
+            color: #E1BB82;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        
+        .debug-btn:hover {
+            background: rgba(225, 187, 130, 0.4);
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="minimize-btn">_</div>
+    <div class="weather-info">
+        <span>☀️ 25°C</span>
+        <span>|</span>
+        <span>空气优</span>
+    </div>
+    
+    <div class="header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 100 100" class="logo">
+            <!-- 原有SVG内容保持不变 -->
+            <defs>
+                <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#E1BB82;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#A67C00;stop-opacity:1" />
+                </linearGradient>
+            </defs>
+            <circle cx="50" cy="50" r="45" fill="url(#gold-gradient)" stroke="#E1BB82" stroke-width="2" />
+            <path d="M50,20 A15,15 0 0,1 65,35 A15,15 0 0,1 50,50 A15,15 0 0,0 35,65 A15,15 0 0,0 50,80 A30,30 0 0,1 20,50 A30,30 0 0,1 50,20" fill="#FFFFFF" />
+            <path d="M50,20 A30,30 0 0,1 80,50 A30,30 0 0,1 50,80 A15,15 0 0,1 65,65 A15,15 0 0,1 50,50 A15,15 0 0,0 35,35 A15,15 0 0,0 50,20" fill="#333333" />
+            <circle cx="50" cy="35" r="4" fill="#333333" />
+            <circle cx="50" cy="65" r="4" fill="#FFFFFF" />
+            <circle cx="50" cy="50" r="45" fill="none" stroke="#E1BB82" stroke-width="2" />
+        </svg>
+        <div class="title">太和宫景区</div>
+    </div>
+    
+    <div class="content">
+        <div class="info">
+            <div class="info-row" data-detail="位于湖北省十堰市武当山特区，是武当山的核心景区之一。">
+                <div class="info-label">地理位置:</div>
+                <div class="info-value">
+                    湖北省十堰市武当山
+                    <div class="info-detail">位于湖北省十堰市武当山特区，是武当山的核心景区之一。</div>
+                </div>
+            </div>
+            <div class="info-row" data-detail="太和宫位于武当山金顶，是武当山海拔最高的宫殿建筑。">
+                <div class="info-label">海拔高度:</div>
+                <div class="info-value">
+                    1,612米
+                    <div class="info-detail">太和宫位于武当山金顶，是武当山海拔最高的宫殿建筑。</div>
+                </div>
+            </div>
+            <div class="info-row" data-detail="明朝永乐十年（1412年）开始兴建，历时12年完工。">
+                <div class="info-label">建筑年代:</div>
+                <div class="info-value">
+                    明朝永乐十年（1412年）
+                    <div class="info-detail">明朝永乐十年（1412年）开始兴建，历时12年完工。</div>
+                </div>
+            </div>
+            <div class="info-row" data-detail="1994年被联合国教科文组织列入世界文化遗产名录。">
+                <div class="info-label">文化遗产:</div>
+                <div class="info-value">
+                    世界文化遗产、国家5A级景区
+                    <div class="info-detail">1994年被联合国教科文组织列入世界文化遗产名录。</div>
+                </div>
+            </div>
+            <div class="info-row" data-detail="太和宫是武当山建筑群的精华，是中国古代建筑艺术的杰出代表。">
+                <div class="info-label">简介:</div>
+                <div class="info-value">
+                    太和宫是武当山的主体建筑，金殿建在岩石之上，四周绝崖千仞，蔚为壮观。
+                    <div class="info-detail">太和宫是武当山建筑群的精华，是中国古代建筑艺术的杰出代表。</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="image-container">
+            <div class="image-slider">
+                <!-- 第一张图片（原SVG） -->
+                <div class="slider-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 300 200">
+                        <!-- 原有SVG内容保持不变 -->
+                        <defs>
+                            <linearGradient id="sky-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#1a3c6e;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#87ceeb;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="mountain-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#3a5e3a;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#2d4d2d;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="roof-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#e9c27a;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#bf9b30;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="wall-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#aa0000;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#880000;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <rect x="0" y="0" width="300" height="200" fill="url(#sky-gradient)" />
+                        <path d="M0,140 L20,120 L40,135 L60,110 L80,125 L100,95 L120,105 L140,90 L160,100 L180,80 L200,105 L220,85 L240,110 L260,90 L280,120 L300,100 L300,200 L0,200 Z" fill="url(#mountain-gradient)" />
+                        <path d="M0,170 L30,150 L60,160 L90,140 L120,155 L150,135 L180,150 L210,130 L240,155 L270,140 L300,160 L300,200 L0,200 Z" fill="#2a3f2a" />
+                        <g transform="translate(90, 70)">
+                            <path d="M60,0 L120,30 L0,30 Z" fill="url(#roof-gradient)" stroke="#000" stroke-width="0.5" />
+                            <path d="M30,30 L90,30 L100,40 L20,40 Z" fill="url(#roof-gradient)" stroke="#000" stroke-width="0.5" />
+                            <rect x="25" y="40" width="70" height="30" fill="url(#wall-gradient)" stroke="#000" stroke-width="0.5" />
+                            <rect x="50" y="50" width="20" height="20" fill="#4a1c1c" stroke="#000" stroke-width="0.5" />
+                            <rect x="30" y="40" width="5" height="30" fill="#8b4513" />
+                            <rect x="85" y="40" width="5" height="30" fill="#8b4513" />
+                            <rect x="15" y="70" width="90" height="10" fill="#a08679" stroke="#000" stroke-width="0.5" />
+                            <path d="M35,80 L85,80 L90,90 L30,90 Z" fill="#a08679" stroke="#000" stroke-width="0.5" />
+                        </g>
+                        <g fill="#ffffff" opacity="0.7">
+                            <ellipse cx="50" cy="40" rx="20" ry="10" />
+                            <ellipse cx="40" cy="35" rx="15" ry="8" />
+                            <ellipse cx="60" cy="35" rx="15" ry="8" />
+                            <ellipse cx="220" cy="30" rx="25" ry="12" />
+                            <ellipse cx="210" cy="25" rx="18" ry="9" />
+                            <ellipse cx="230" cy="25" rx="18" ry="9" />
+                        </g>
+                    </svg>
+                </div>
+                <!-- 第二张图片（夜景） -->
+                <div class="slider-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 300 200">
+                        <defs>
+                            <linearGradient id="night-sky" x1="0%" y1="0%" x2="0%" y2="100%">
+                                <stop offset="0%" style="stop-color:#000033;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#000066;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <rect x="0" y="0" width="300" height="200" fill="url(#night-sky)" />
+                        <!-- 星星 -->
+                        <g fill="#ffffff">
+                            <circle cx="30" cy="30" r="1" />
+                            <circle cx="60" cy="40" r="1" />
+                            <circle cx="90" cy="20" r="1" />
+                            <circle cx="120" cy="35" r="1" />
+                            <circle cx="150" cy="25" r="1" />
+                            <circle cx="180" cy="30" r="1" />
+                            <circle cx="210" cy="40" r="1" />
+                            <circle cx="240" cy="20" r="1" />
+                            <circle cx="270" cy="35" r="1" />
+                        </g>
+                        <!-- 月亮 -->
+                        <circle cx="250" cy="40" r="15" fill="#ffff99" />
+                        <!-- 建筑轮廓（发光效果） -->
+                        <g transform="translate(90, 70)" fill="#aa0000" opacity="0.8">
+                            <path d="M60,0 L120,30 L0,30 Z" />
+                            <path d="M30,30 L90,30 L100,40 L20,40 Z" />
+                            <rect x="25" y="40" width="70" height="30" />
+                        </g>
+                        <!-- 灯光效果 -->
+                        <g fill="#ffff00" opacity="0.5">
+                            <circle cx="115" cy="120" r="5" />
+                            <circle cx="155" cy="120" r="5" />
+                            <circle cx="135" cy="140" r="5" />
+                        </g>
+                    </svg>
+                </div>
+                <!-- 第三张图片（特写） -->
+                <div class="slider-item">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 300 200">
+                        <defs>
+                            <pattern id="wood-pattern" patternUnits="userSpaceOnUse" width="10" height="10">
+                                <rect width="10" height="10" fill="#8b4513" />
+                                <path d="M0,0 L10,10 M-2,8 L2,12 M8,-2 L12,2" stroke="#654321" stroke-width="1" />
+                            </pattern>
+                        </defs>
+                        <!-- 近景特写 -->
+                        <g transform="translate(50, 20) scale(1.5)">
+                            <!-- 屋顶细节 -->
+                            <path d="M60,0 L120,30 L0,30 Z" fill="url(#roof-gradient)" stroke="#000" stroke-width="0.5" />
+                            <path d="M30,30 L90,30 L100,40 L20,40 Z" fill="url(#roof-gradient)" stroke="#000" stroke-width="0.5" />
+                            <!-- 墙壁纹理 -->
+                            <rect x="25" y="40" width="70" height="30" fill="url(#wall-gradient)" stroke="#000" stroke-width="0.5" />
+                            <!-- 木质门框 -->
+                            <rect x="48" y="48" width="24" height="24" fill="url(#wood-pattern)" />
+                            <!-- 门上的装饰 -->
+                            <path d="M50,50 Q60,45 70,50" stroke="#E1BB82" stroke-width="2" fill="none" />
+                            <circle cx="60" cy="55" r="3" fill="#E1BB82" />
+                        </g>
+                    </svg>
+                </div>
+            </div>
+            <div class="slider-nav">
+                <div class="nav-dot active"></div>
+                <div class="nav-dot"></div>
+                <div class="nav-dot"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加调试按钮 -->
+    <button class="debug-btn">调试信息</button>
+    
+    <div class="footer">
+        © 2023 武当山风景区管理委员会 - 敬请保护文化遗产
+    </div>
+
+    <script>
+        // 图片轮播功能
+        const slider = document.querySelector('.image-slider');
+        const dots = document.querySelectorAll('.nav-dot');
+        let currentSlide = 0;
+        
+        function showSlide(index) {
+            slider.style.transform = `translateX(-${index * 150}px)`;
+            dots.forEach(dot => dot.classList.remove('active'));
+            dots[index].classList.add('active');
+            currentSlide = index;
+        }
+        
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => showSlide(index));
+        });
+        
+        // 自动轮播
+        setInterval(() => {
+            currentSlide = (currentSlide + 1) % 3;
+            showSlide(currentSlide);
+        }, 5000);
+        
+        // 最小化功能
+        const minimizeBtn = document.querySelector('.minimize-btn');
+        const body = document.querySelector('body');
+        
+        minimizeBtn.addEventListener('click', () => {
+            body.classList.toggle('minimized');
+            minimizeBtn.textContent = body.classList.contains('minimized') ? '+' : '_';
+        });
+        
+        // 天气信息更新
+        const weatherInfo = document.querySelector('.weather-info');
+        const weatherIcons = ['☀️', '⛅', '☁️', '🌧️', '⛈️'];
+        const temperatures = [25, 23, 26, 22, 24];
+        const airQualities = ['优', '良', '轻度污染', '中度污染'];
+        
+        function updateWeather() {
+            const icon = weatherIcons[Math.floor(Math.random() * weatherIcons.length)];
+            const temp = temperatures[Math.floor(Math.random() * temperatures.length)];
+            const quality = airQualities[Math.floor(Math.random() * airQualities.length)];
+            
+            weatherInfo.innerHTML = `
+                <span>${icon} ${temp}°C</span>
+                <span>|</span>
+                <span>空气${quality}</span>
+            `;
+        }
+        
+        // 每30秒更新一次天气
+        setInterval(updateWeather, 30000);
+        
+        // 信息行悬停效果
+        const infoRows = document.querySelectorAll('.info-row');
+        infoRows.forEach(row => {
+            row.addEventListener('mouseenter', () => {
+                row.style.transform = 'translateX(5px)';
+            });
+            
+            row.addEventListener('mouseleave', () => {
+                row.style.transform = 'translateX(0)';
+            });
+        });
+        
+        // 标题点击效果
+        const title = document.querySelector('.title');
+        title.addEventListener('click', () => {
+            title.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                title.style.transform = 'scale(1)';
+            }, 200);
+        });
+        
+        // 添加调试按钮点击事件
+        const debugBtn = document.querySelector('.debug-btn');
+        debugBtn.addEventListener('click', () => {
+            console.log('=== 太和宫景区信息 ===');
+            console.log('当前时间:', new Date().toLocaleString());
+            console.log('当前展示的图片索引:', currentSlide);
+            
+            // 收集并打印所有信息条目
+            const infoRows = document.querySelectorAll('.info-row');
+            infoRows.forEach(row => {
+                const label = row.querySelector('.info-label').textContent;
+                const value = row.querySelector('.info-value').firstChild.textContent.trim();
+                const detail = row.getAttribute('data-detail');
+                console.log(`${label}`, {
+                    '基本信息': value,
+                    '详细说明': detail
+                });
+            });
+            
+            // 打印天气信息
+            const weatherText = weatherInfo.textContent;
+            console.log('当前天气信息:', weatherText);
+            
+            console.log('===================');
+        });
+    </script>
+</body>
+</html> 

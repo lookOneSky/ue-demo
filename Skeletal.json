@@ -1,0 +1,81 @@
+{
+    "Feet": [
+        {
+            "name": "布鞋黑",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BootsBlack.SK_BootsBlack'"
+        },
+        {
+            "name": "毛绒布鞋粉",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_ShoesEmei.SK_ShoesEmei'"
+        },
+        {
+            "name": "毛绒蝴蝶结布鞋粉",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_ShoesEmeiB.SK_ShoesEmeiB'"
+        },
+        {
+            "name": "皮靴黑",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BootsBlackLeather.SK_BootsBlackLeather'"
+        }
+    ],
+    "Hair": [
+        {
+            "name": "斗笠面纱白",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BambooHat.SK_BambooHat'"
+        },
+        {
+            "name": "斗笠面纱黑",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BambooHat_BlackTorn.SK_BambooHat_BlackTorn'"
+        },
+        {
+            "name": "斗笠",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BambooHat_B.SK_BambooHat_B'"
+        },
+        {
+            "name": "草帽",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BambooHat_C.SK_BambooHat_C'"
+        }
+    ],
+    "HandL": [],
+    "HandR": [],
+    "BottomBody": [
+        {
+            "name": "弟子裤白",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BottomBody_B.SK_BottomBody_B'"
+        },
+        {
+            "name": "士兵裤黑",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BottomBody_C.SK_BottomBody_C'"
+        },
+        {
+            "name": "忍者裤黑",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_BottomBody_D.SK_BottomBody_D'"
+        }
+    ],
+    "UpperBody": [
+        {
+            "name": "女毛皮裘无袖",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B3.SK_UpperBody_B3'"
+        },
+        {
+            "name": "女毛皮裘有袖",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B2.SK_UpperBody_B2'"
+        },
+        {
+            "name": "女毛皮裘有袖披风",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B.SK_UpperBody_B'"
+        },
+        {
+            "name": "女弟子服无袖",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B6.SK_UpperBody_B6'"
+        },
+        {
+            "name": "女弟子服有袖",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B5.SK_UpperBody_B5'"
+        },
+        {
+            "name": "女弟子服有袖披风",
+            "path": "/Script/Engine.SkeletalMesh'/DasAssetLibrary/G2_WulinSwordman_01/Meshes/Characters/Seperates/Females/SK_UpperBody_B4.SK_UpperBody_B4'"
+        }
+    ],
+    "Mask": []
+}
