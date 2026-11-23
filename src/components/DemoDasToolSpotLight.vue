@@ -2,6 +2,9 @@
 import { ref, watch } from 'vue'
 import { DasToolSpotLight } from './lib/Tool/DasToolSpotLight.js'
 import { Weather } from './lib/Scene/Weather.js'
+import { useLightDemoShowModel } from '../utils/useLightDemoShowModel'
+
+useLightDemoShowModel()
 
 // 工具实例
 const spotLightTool = new DasToolSpotLight()

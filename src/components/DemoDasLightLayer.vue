@@ -5,6 +5,9 @@ import { DasLightTorchLayer } from "./lib/Layer/DasLightTorchLayer.js"
 import { DasGizmosOperateTool } from "./lib/Tool/DasGizmosOperateTool.js"
 import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 import { Weather } from "./lib/Scene/Weather.js"
+import { useLightDemoShowModel } from "../utils/useLightDemoShowModel"
+
+useLightDemoShowModel()
 
 const lightType = ref('point')
 const activeLayer = ref<any>(null)
