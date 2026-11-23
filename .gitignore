@@ -27,7 +27,6 @@ dist-ssr
 /docs
 /nginx-deploy
 /Electron/
-/PixelStreamingInfrastructure/
 /Pack/*
 !/Pack/*.bat
 !/Pack/SignallingWebServer/

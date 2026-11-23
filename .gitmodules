@@ -1,0 +1,4 @@
+[submodule "PixelStreamingInfrastructure"]
+	path = PixelStreamingInfrastructure
+	url = https://github.com/lookOneSky/PixelStreamingInfrastructure.git
+	branch = DasPixel
