@@ -1,8 +1,9 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import { ShowModel } from '../components/lib/Scene/ShowModel.js'
+import { Weather } from '../components/lib/Scene/Weather.js'
 
 /**
- * 灯光 Demo 进入时关闭 Unlight 并开启平滑法线，退出时恢复进入前的状态
+ * 灯光 Demo 进入时关闭 Unlight 并开启平滑法线，退出时恢复进入前的状态并将时间重置为中午 12:00
  */
 export function useLightDemoShowModel() {
   let savedUnlight: boolean | null = null
@@ -30,6 +31,7 @@ export function useLightDemoShowModel() {
 
   onBeforeUnmount(() => {
     isDisposed = true
+    Weather.SetTimeOfDay('12:00')
     if (!hasApplied) return
 
     if (savedUnlight !== null) {
