@@ -1,161 +1,118 @@
 <script setup lang="ts">
-import { ref, onMounted, inject } from "vue"
-import { dataConfig } from "./data/dataConfig"
-import Viewer from "./lib/Viewer.js"
-import EmbedViewer from "./lib/EmbedViewer.js"
-import { Camera } from "./lib/Scene/Camera.js"
-import DasElectron from "./lib/Scene/DasElectron.js"
+import { inject, onBeforeUnmount, onMounted, ref } from 'vue'
+import Viewer from './lib/Viewer.js'
+import DasElectron from './lib/Scene/DasElectron.js'
 
-
-// 类型声明
 declare global {
-	interface Window {
-		viewer: any;
-	}
+  interface Window { viewer: any }
 }
 
-const sceneContainer = ref<HTMLElement>()
-const viewerPopupContainer = ref<HTMLElement>()
-let viewer: any = null;
+const emit = defineEmits<{
+  status: [ready: boolean, label: string]
+  command: [message: { commandID: string; class: string; function: string; sent: boolean }]
+  response: [message: string]
+}>()
+const setShareData = inject<(key: string, value: unknown) => void>('setShareData')
+const addHandler = inject<(handler: (message: { action: string; data: unknown }) => void) => () => void>('addHandler')
+const player = ref<HTMLElement>()
+const hasVideo = ref(false)
+let viewer: InstanceType<typeof Viewer>
+let observer: ResizeObserver | undefined
+let unsubscribe: (() => void) | undefined
+let frame = 0
+const listeners = new AbortController()
 
-const getSignalServerUrl = () => {
-	//return "ws://10.100.5.72:6543"
-	return "ws://127.0.0.1:6543"
-	//return "ws://10.100.2.28:6543"
-
-	const configuredUrl = import.meta.env.VITE_SIGNAL_SERVER_URL?.trim()
-	if (configuredUrl) return configuredUrl
-
-	const protocol = window.location.protocol === "https:" ? "wss" : "ws"
-	return `${protocol}://${window.location.hostname}:6543`
+function setStatus(ready: boolean, label: string) {
+  setShareData?.('viewerReady', ready)
+  emit('status', ready, label)
 }
 
-// 设置共享数据
-const setShareData: any = inject("setShareData")
-
-// 将viewer挂载到左下角弹窗
-const appendViewerToPopup = (viewerInstance: any) => {
-	if (viewerPopupContainer.value && viewerInstance?.rootElement) {
-		viewerPopupContainer.value.appendChild(viewerInstance.rootElement)
-	}
+function updateKeyboard(event: Event) {
+  viewer.setKeyboardInput(event.target instanceof Node && Boolean(player.value?.contains(event.target)))
 }
 
-// 初始化viewer
-const initViewer = () => {
-	// 创建Viewer实例
-	viewer = new Viewer({
-		InputControllers: [],
-		onInitialize: () => {
-			console.log('Viewer initialized')
-			if (setShareData) {
-				setShareData("viewerReady", true)
-			}
-
-			window.viewer.addResponseEventListener("1111", (x) => {
-				console.log("1111", x)
-			})
-
-			// 测试连通性：获取相机信息
-			Camera.getCameraFlyInfoLLH().then((info: any) => {
-				console.log('Camera连通性测试成功，相机信息:', info)
-			}).catch((err: any) => {
-				console.error('Camera连通性测试失败:', err)
-			})
-
-		},
-		useUrlParams: false,
-		hideDefaultUI: true,
-		signalServer: getSignalServerUrl(),
-	})
-
-	if (sceneContainer.value) {
-		sceneContainer.value.appendChild(viewer.rootElement)
-	}
-
-	//appendViewerToPopup(viewer)
-
-	// 将viewer添加到全局window对象以便调试
-	window.viewer = viewer
-	DasElectron.initListener()
+// The bundled SDK recalculates its pointer coordinates on a window resize.
+function resizePlayer() {
+  if (frame) return
+  frame = requestAnimationFrame(() => {
+    frame = 0
+    window.dispatchEvent(new Event('resize'))
+  })
 }
 
-// 发送消息到UE
-const sendMessageToUE = (message: any) => {
-	if (viewer) {
-		viewer.sendMessage(message)
-	}
-}
-
-const initEmbedViewer = () => {
-	let viewer = new EmbedViewer();
-	window.viewer = viewer
-	
-}
-
-// 组件挂载时初始化
 onMounted(() => {
-	//initEmbedViewer()
-	initViewer();
+  const signalServer = import.meta.env.VITE_SIGNAL_SERVER_URL?.trim() || 'ws://127.0.0.1:6543'
+  viewer = new Viewer({ InputControllers: [], useUrlParams: false, hideDefaultUI: true, signalServer })
+  window.viewer = viewer
+  player.value!.appendChild(viewer.rootElement)
+  DasElectron.initListener()
+  viewer.setKeyboardInput(false)
+  const stream = viewer.stream
+  let channelOpen = false
+  function reportReady() {
+    if (channelOpen) {
+      const video = player.value?.querySelector('video')
+      const canSend = Boolean(video && video.readyState > 0)
+      setStatus(canSend, canSend ? 'UE 已连接' : '正在准备视频')
+    }
+  }
+  stream.addEventListener('webRtcConnecting', () => { channelOpen = false; setStatus(false, '正在连接 UE') })
+  stream.addEventListener('dataChannelOpen', () => { channelOpen = true; reportReady() })
+  stream.addEventListener('dataChannelClose', () => { channelOpen = false; setStatus(false, '数据通道已关闭') })
+  stream.addEventListener('webRtcFailed', () => { channelOpen = false; hasVideo.value = false; setStatus(false, '连接失败') })
+  stream.addEventListener('webRtcDisconnected', () => { channelOpen = false; hasVideo.value = false; setStatus(false, 'UE 已断开') })
+  stream.addEventListener('videoInitialized', reportReady)
+  stream.addEventListener('playStream', () => { hasVideo.value = true; reportReady() })
+  player.value!.addEventListener('loadedmetadata', reportReady, { capture: true, signal: listeners.signal })
+  player.value!.addEventListener('playing', event => {
+    if (event.target instanceof HTMLVideoElement) { hasVideo.value = true; reportReady() }
+  }, { capture: true, signal: listeners.signal })
+  viewer.addEventListener('ueCommand', (event: CustomEvent) => emit('command', event.detail))
+  viewer.addResponseEventListener('ApiDemoWorkbench', (raw: string) => emit('response', raw))
+  unsubscribe = addHandler?.(({ action, data }) => viewer.sendMessage({
+    EventName: action, Params: typeof data === 'object' ? JSON.stringify(data) : data
+  }))
+  observer = new ResizeObserver(resizePlayer)
+  observer.observe(player.value!)
+  window.addEventListener('scroll', event => {
+    if (event.target === document || (event.target instanceof Element && event.target.contains(player.value!))) resizePlayer()
+  }, { capture: true, passive: true, signal: listeners.signal })
+  for (const name of ['pointerdown', 'focusin']) {
+    document.addEventListener(name, updateKeyboard, { capture: true, signal: listeners.signal })
+  }
 })
 
-// 注册事件处理器
-const addSceneHandler: any = inject("addHandler")
-if (addSceneHandler) {
-	addSceneHandler(({ action, data }: { action: string, data: any }) => {
-		console.log('Scene action:', action, data)
-		
-		// 直接发送命令到UE
-		try {
-			const message = {
-				EventName: action,
-				Params: typeof data === 'object' ? JSON.stringify(data) : data
-			}
-			sendMessageToUE(message)
-		} catch (error) {
-			console.error('发送消息到UE失败:', error)
-		}
-	})
-}
+onBeforeUnmount(() => {
+  listeners.abort()
+  observer?.disconnect()
+  unsubscribe?.()
+  cancelAnimationFrame(frame)
+  viewer?.removeResponseEventListener('ApiDemoWorkbench')
+  viewer?.dispose()
+  if (window.viewer === viewer) {
+    window.viewer = undefined
+    // SDK reply listeners belong to the disposed stream.
+    Object.assign(window, { gInitListener: false })
+  }
+})
 </script>
 
 <template>
-	<div id="player" class="scene-container" ref="sceneContainer">
-		<div class="viewer-popup">
-			<div class="viewer-popup-body" ref="viewerPopupContainer"></div>
-		</div>
-	</div>
+  <div id="player" ref="player" class="stream-host" :class="{ 'has-video': hasVideo }" aria-label="UE 实时场景">
+    <div v-if="!hasVideo" class="cover-credit">连接封面 · 武当山</div>
+  </div>
 </template>
 
 <style scoped>
-.scene-container {
-	position: relative;
-	width: 100%;
-	height: 100%;
-	overflow: hidden;
-	z-index: 1;
-	background-color: transparent;
+.stream-host { position: relative; isolation: isolate; background: #213956 url('../assets/images/dongji.png') center 53% / cover no-repeat; width: 100%; height: 100%; overflow: hidden; }
+.cover-credit { position: absolute; z-index: 2; left: 14px; bottom: 12px; pointer-events: none; border-radius: 4px; background: #102641bd; padding: 4px 8px; color: white; font-size: 11px; }
+.stream-host :deep(#playerUI) { position: absolute; inset: 0; }
+.stream-host:not(.has-video) :deep(#videoElementParent) { background: transparent; }
+.stream-host:not(.has-video) :deep(video) { opacity: 0; }
+.stream-host :deep(:is(#playOverlay, #infoOverlay, #disconnectOverlay, #connectOverlay, #errorOverlay, #afkOverlay)) {
+  background: linear-gradient(180deg, #10264a1c, #0c1c3b66); padding: 16px; color: white;
+  font: 600 14px/1.6 Inter, "Microsoft YaHei UI", sans-serif; text-transform: none; text-shadow: 0 1px 5px #132e52;
 }
-
-.viewer-popup {
-	position: absolute;
-	left: 16px;
-	bottom: 16px;
-	width: 25%;
-	height: 25%;
-	z-index: 10;
-	overflow: hidden;
-	background-color: #000;
-	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
-}
-
-.viewer-popup-body {
-	width: 100%;
-	height: 100%;
-	overflow: hidden;
-}
-
-.viewer-popup-body :deep(> *) {
-	width: 100%;
-	height: 100%;
-}
+.stream-host :deep(#playOverlay.clickableState)::after { content: '▷　播放实时场景'; background: #174bb6; color: white; padding: 8px 16px; border-radius: 5px; }
+.stream-host :deep(#playButton) { display: none; }
 </style>

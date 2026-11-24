@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import Sence from './components/sence.vue'
-import Nav from './components/nav.vue'
 import TabDemo from './components/TabDemo.vue'
 import { provide, ref, watch } from 'vue'
 
@@ -8,6 +6,7 @@ const handlerList = ref<Array<(e: any) => void>>([])
 
 const addHandler = (handler: (e: any) => void) => {
   handlerList.value.push(handler)
+  return () => { handlerList.value = handlerList.value.filter(entry => entry !== handler) }
 }
 
 provide('addHandler', addHandler)
@@ -45,17 +44,5 @@ provide('subShareData', (key: string, callback: (key: string, value: any) => voi
 </script>
 
 <template>
-  <div class="main">
-    <Sence />
-    <TabDemo />
-  </div>
+  <TabDemo />
 </template>
-
-<style scoped>
-.main {
-  width: 100%;
-  height: 100%;
-  background-color: transparent;
-  z-index: 1;
-}
-</style>

@@ -2,7 +2,7 @@ import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 class DasElectron {
     static className = "DasElectron";
-    static _bListenerCreated = false;
+    static _listeningViewer = null;
 
     /// 显示UE程序窗口
     static async showUEWindow() {
@@ -58,8 +58,8 @@ class DasElectron {
 
     /// 监听UE发来的DasElectron消息，转发IsPassThroughByCommand到Electron
     static initListener() {
-        if (DasElectron._bListenerCreated) return;
-        DasElectron._bListenerCreated = true;
+        if (DasElectron._listeningViewer === window.viewer) return;
+        DasElectron._listeningViewer = window.viewer;
         window.viewer.addResponseEventListener(DasElectron.className, (json) => {
             const obj = JSON.parse(json);
             if (obj.class !== DasElectron.className || obj.function !== 'emitMessage') return;

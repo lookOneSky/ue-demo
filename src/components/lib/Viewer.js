@@ -179,7 +179,16 @@ class Viewer extends EventEmitter {
 	}
 
 	sendMessage(message) {
-		this.stream.emitUIInteraction(message)
+		const sent = this.stream.emitUIInteraction(message)
+		if (message?.commandID) {
+			this.dispatchEvent(new CustomEvent('ueCommand', { detail: { ...message, sent } }))
+		}
+	}
+
+	setKeyboardInput(enabled) {
+		if (this.stream.config.isFlagEnabled(Flags.KeyboardInput) !== enabled) {
+			this.stream.config.setFlagEnabled(Flags.KeyboardInput, enabled)
+		}
 	}
 
 	onResponse(callback) {

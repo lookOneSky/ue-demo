@@ -30,6 +30,7 @@ dist-ssr
 /docs/*
 !/docs/api-demo-preview/
 /nginx-deploy
+/.publish/
 /Electron/
 /Pack/*
 !/Pack/*.bat

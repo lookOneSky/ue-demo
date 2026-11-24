@@ -1,0 +1,399 @@
+/* The existing demos share Element Plus controls and several generations of
+   scoped styles. Keep the theme inside the inspector, away from the 3D view. */
+.api-workbench .legacy-panel {
+  --panel-ink: var(--ink);
+  --panel-text: #314861;
+  --panel-muted: var(--muted);
+  --panel-border: var(--line);
+  --panel-field-border: #abbed0;
+  --panel-tint: #f3f8fd;
+  --panel-accent: var(--blue);
+  --panel-blue-light: #eaf3ff;
+  --panel-danger: #a52f3e;
+  --panel-success: #176845;
+  --panel-warning: #79500f;
+  --el-color-primary: var(--panel-accent);
+  --el-color-primary-light-9: var(--panel-blue-light);
+  --el-text-color-primary: var(--panel-ink);
+  --el-text-color-regular: var(--panel-text);
+  --el-text-color-secondary: var(--panel-muted);
+  --el-border-color: var(--panel-field-border);
+  --el-fill-color-light: var(--panel-tint);
+  --el-bg-color: #fff;
+  --el-bg-color-overlay: #fff;
+  color-scheme: light;
+  color: var(--panel-text);
+  font: 14px/1.55 Inter, "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  text-align: start;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  container-type: inline-size;
+}
+
+.api-workbench .legacy-panel *,
+.api-workbench .legacy-panel *::before,
+.api-workbench .legacy-panel *::after {
+  box-sizing: border-box;
+}
+
+.api-workbench .legacy-panel :is(.tab-panel, .tab-panel > div, .height-demo, .demo-content) {
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  color: var(--panel-text);
+}
+
+.api-workbench .legacy-panel :is(.demo-header, .title) {
+  padding: 0;
+  margin: 0 0 14px;
+  border: 0;
+  background: transparent;
+  text-align: start;
+}
+
+.api-workbench .legacy-panel :is(.title, .demo-header h3) {
+  color: var(--panel-ink) !important;
+  margin-top: 0;
+  font-family: inherit !important;
+  font-weight: 650;
+  font-size: 18px;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-shadow: none;
+}
+
+.api-workbench .legacy-panel :is(.split_line, .header-line) { display: none; }
+.api-workbench .legacy-panel > div > :is(.title, .demo-header):first-child,
+.api-workbench .legacy-panel > .tab-panel > div > :is(.title, .demo-header):first-child {
+  display: none;
+}
+/* These two demos add a more specific description than the navigation title. */
+.api-workbench .legacy-panel .title:first-child:has(~ .event-panel, ~ .model-control-group) { display: block; }
+.api-workbench .legacy-panel .demo-content { gap: 12px; }
+
+.api-workbench .legacy-panel :is(
+  .control-section, .control-panel, .control-group, .params-group, .style-panel, .param-section,
+  .layer-control-group, .section, .material-section, .batch-control, .distance-control, .tool-control-group,
+  .capture-control-group, .tool-params-section, .layer-params-section, .mode-group, .settings-content,
+  .transform-group, .camera-control-group, .video-settings-group, .rotation-params-group, .animation-params-group,
+  .texture-params-group, .params-operations-group, .camera-params-group, .model-control-group,
+  .flight-control-group, .autoscale-control-group, .screen-offset-control-group
+) {
+  min-width: 0;
+  margin: 0 0 12px;
+  padding: 14px;
+  background: #fff !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: 9px;
+  color: var(--panel-text);
+}
+.api-workbench .legacy-panel .demo-content > .control-section { margin: 0; }
+
+.api-workbench .legacy-panel :is(h3, h4, h5, .section-title, .sub-title, .group-title, .sec_title,
+  .panel-header, .coordinate-title, .params-header, .selection-title, .points-header, .list-header) {
+  font-family: inherit !important;
+  color: var(--panel-ink) !important;
+  letter-spacing: normal;
+  text-align: start;
+  text-shadow: none;
+  border-color: var(--panel-border) !important;
+}
+.api-workbench .legacy-panel :is(h4, .section-title, .group-title, .sec_title) {
+  font-size: 14px;
+  line-height: 1.45;
+  font-weight: 650;
+  margin: 0 0 12px;
+  opacity: 1;
+}
+.api-workbench .legacy-panel .control-section h4::before {
+  width: 3px;
+  height: 13px;
+  background: var(--panel-accent);
+}
+.api-workbench .legacy-panel .coordinate-title {
+  padding: 0;
+  border: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.api-workbench .legacy-panel :is(.action-buttons, .action-row, .form-row, .control-row, .button-group,
+  .step-section, .create-section, .layer-controls, .level-controls, .row, .rgba-row, .image-row, .text-row) {
+  flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
+  gap: 8px;
+}
+.api-workbench .legacy-panel :is(.form-group, .input-field, .tag-select, .coordinate-group,
+  .position-info, .layer-info, .info-value, .slider-container) {
+  min-width: 0 !important;
+  max-width: 100%;
+}
+.api-workbench .legacy-panel .coordinate-row {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 116px), 1fr));
+  gap: 10px;
+}
+.api-workbench .legacy-panel .form-group > label {
+  display: block;
+  margin: 0 0 5px;
+  white-space: normal;
+}
+.api-workbench .legacy-panel :is(label, .slider-label, .step-label, .info-label, .param-label, .status-label,
+  .mode-label, .progress-label, .transform-label, .label, .log-header) {
+  color: var(--panel-text) !important;
+  font-family: inherit !important;
+  font-size: 13px;
+  font-weight: 550;
+}
+
+/* The component styles and older inline color declarations predate the shared theme. */
+.api-workbench .legacy-panel :is(
+  .step-value, .info-value, .stat-item, .state-description, .position-name, .level-name, .layer-name,
+  .tag-name, .option-name, .pawn-name, .layer-id, .transform-value, .status-value, .param-value,
+  .point-item, .point-info, .position-text, .position-details, .point-table, .current-speed, .current-pawn,
+  .current-tile, .instruction-text, .point-popup, .popup-header, .popup-content, .slider-container
+),
+.api-workbench .legacy-panel :is(.info-content, .status-panel, .instructions, .usage-tips, .help-panel,
+  .result-panel, .result-display, .info-panel, .log-panel, .points-panel, .selection-info) :is(p, ul, li, strong),
+.api-workbench .legacy-panel :is([style*="color: #e1bb82" i], [style*="color:#e1bb82" i],
+  [style*="color: #ffffff" i]) {
+  color: var(--panel-text) !important;
+  font-family: inherit !important;
+  border-color: var(--panel-border) !important;
+}
+.api-workbench .legacy-panel :is(.step-hint, .hint, .section-hint, .image-tip, .texture-status,
+  .option-desc, .tag-desc, .pawn-desc, .no-selection, .no-layers, .empty-state, .empty-list, .log-empty,
+  .distance-info, .waiting-tip, .log-time, .log-id) {
+  color: var(--panel-muted) !important;
+  opacity: 1;
+}
+.api-workbench .legacy-panel :is(.status-panel, .info-display, .points-panel, .result-panel, .info-panel,
+  .help-panel, .log-panel, .result-display, .status-tip, .waiting-tip, .current-sequence, .sequence-status,
+  .selection-info, .pawn-display, .event-panel, .speed-display, .params-display, .transform-display,
+  .current-pawn, .position-list, .layer-list, .highlight-settings, .outline-settings, .instruction-item,
+  .usage-tips, .point-popup) {
+  color: var(--panel-text) !important;
+  background: var(--panel-tint) !important;
+  border: 1px solid var(--panel-border) !important;
+  border-radius: 7px;
+  padding: 10px 12px;
+  max-width: 100%;
+}
+.api-workbench .legacy-panel :is(.status-panel, .points-panel, .result-panel, .info-panel, .help-panel,
+  .current-sequence, .sequence-status) { margin: 0 0 12px !important; }
+.api-workbench .legacy-panel :is(.status-panel, .points-panel, .style-panel, .status-display) p {
+  margin: 3px 0;
+}
+.api-workbench .legacy-panel :is(.mode-badge, .status-badge, .layer-class, .level-status,
+  .list-header, .log-scrollbar, .log-item, .tag-item, .pawn-option, .level-item, .layer-item, .position-item) {
+  color: var(--panel-text) !important;
+  background: #fff !important;
+  border-color: var(--panel-border) !important;
+}
+.api-workbench .legacy-panel :is(.tag-item, .pawn-option, .layer-item):is(:hover, .active),
+.api-workbench .legacy-panel :is(.status-panel.active, .status-badge, .mode-badge, .layer-class) {
+  background: var(--panel-blue-light) !important;
+  color: var(--panel-accent) !important;
+  border-color: #adc9ed !important;
+}
+.api-workbench .legacy-panel :is(.success, .step-status, .completed-tip, .status-value.visible,
+  .log-inside, .level-status.loaded, .result-success, .status-tip.success, .action-message.success) {
+  color: var(--panel-success) !important;
+}
+.api-workbench .legacy-panel :is(.fail, .error, .result-fail, .status-tip.error, .action-message.error,
+  [style*="color: #f56c6c" i]) { color: var(--panel-danger) !important; }
+.api-workbench .legacy-panel :is(.log-outside, .warning) { color: var(--panel-warning) !important; }
+.api-workbench .legacy-panel :is(pre, code, .layer-id, .log-id) {
+  font-family: "Cascadia Code", Consolas, monospace !important;
+  font-variant-numeric: tabular-nums;
+}
+.api-workbench .legacy-panel pre {
+  max-width: 100%;
+  overflow: auto;
+  padding: 10px;
+  color: var(--panel-ink);
+  background: var(--panel-tint);
+  white-space: pre-wrap;
+}
+.api-workbench .legacy-panel .point-table { width: 100%; font-variant-numeric: tabular-nums; }
+.api-workbench .legacy-panel .point-table :is(th, td) {
+  border-color: var(--panel-border) !important;
+  padding: 5px 6px;
+}
+.api-workbench .legacy-panel .point-table th { background: var(--panel-blue-light) !important; }
+.api-workbench .legacy-panel .point-table tbody tr:nth-child(even) { background: var(--panel-tint); }
+
+/* Set semantics on the control itself, including legacy scoped hover/disabled rules. */
+.api-workbench .legacy-panel :where(.el-button, button.btn) {
+  --action-ink: #274f78;
+  --action-fill: #fff;
+  --action-line: #bdcede;
+  --action-hover: #eaf2fa;
+  color: var(--action-ink) !important;
+  background: var(--action-fill) !important;
+  border: 1px solid var(--action-line) !important;
+  border-radius: 6px;
+  box-shadow: none !important;
+  text-shadow: none;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 1.4;
+  min-width: 0;
+  min-height: 32px;
+  height: auto;
+  max-width: 100%;
+  padding: 6px 11px;
+  vertical-align: middle;
+  white-space: normal;
+  transform: none !important;
+}
+.api-workbench .legacy-panel :is(.el-button, button.btn) > span {
+  color: inherit !important;
+  font: inherit;
+}
+.api-workbench .legacy-panel .el-button--primary {
+  --action-ink: #fff;
+  --action-fill: var(--panel-accent);
+  --action-line: var(--panel-accent);
+  --action-hover: #124c9d;
+}
+.api-workbench .legacy-panel .el-button--success {
+  --action-ink: #124f9e;
+  --action-fill: var(--panel-blue-light);
+  --action-line: #b9d2f2;
+  --action-hover: #d8e9ff;
+}
+.api-workbench .legacy-panel :is(.el-button--danger, .btn-danger) {
+  --action-ink: var(--panel-danger);
+  --action-fill: #fff7f7;
+  --action-line: #e3b7bf;
+  --action-hover: #ffe8eb;
+}
+.api-workbench .legacy-panel :is(.el-button, button.btn):hover:not(:disabled, .is-disabled) {
+  background: var(--action-hover) !important;
+}
+.api-workbench .legacy-panel :is(.el-button, button.btn):is(:disabled, .is-disabled) {
+  color: #748494 !important;
+  background: #f0f3f6 !important;
+  border-color: #d7e0e7 !important;
+  opacity: 1;
+  cursor: not-allowed;
+}
+.api-workbench .legacy-panel :is(button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--panel-accent);
+  outline-offset: 2px;
+}
+.api-workbench .legacy-panel .el-button[style*="margin: 10px"] { margin: 3px 5px 3px 0 !important; }
+.api-workbench .legacy-panel .el-button + .el-button { margin-left: 3px; }
+
+.api-workbench .legacy-panel .el-form-item {
+  display: flex;
+  align-items: flex-start;
+  margin: 0 0 12px;
+  max-width: 100%;
+}
+.api-workbench .legacy-panel .el-form-item__label {
+  color: var(--panel-text) !important;
+  font-family: inherit !important;
+  font-size: 13px;
+  text-align: start;
+  justify-content: flex-start;
+  width: min(125px, 35%);
+  flex: 0 0 min(125px, 35%);
+  min-height: 32px;
+  height: auto;
+  line-height: 1.4;
+  align-items: center;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.api-workbench .legacy-panel .el-form-item__content { flex: 1 1 0; min-width: 0; gap: 4px; }
+.api-workbench .legacy-panel .el-form-item__content > div[style*="flex"] {
+  max-width: 100%;
+  flex-wrap: wrap;
+  row-gap: 5px;
+}
+.api-workbench .legacy-panel .el-form-item__content > [style*="margin-left"] { margin-left: 0 !important; }
+.api-workbench .legacy-panel :is(.el-input, .el-select, .el-input-number, .el-slider,
+  .el-textarea, .el-switch, .el-color-picker, .color-preview, .image-preview, img) { max-width: 100%; }
+.api-workbench .legacy-panel :is(.el-input__wrapper, .el-select__wrapper, .el-textarea__inner,
+  input:not([class]):is([type="text"], [type="number"]), select:not([class]), textarea:not([class])) {
+  color: var(--panel-ink) !important;
+  background: #fff !important;
+  border: 1px solid var(--panel-field-border) !important;
+  border-radius: 6px;
+  box-shadow: none !important;
+  font-family: inherit !important;
+}
+.api-workbench .legacy-panel :is(.el-input__wrapper.is-focus, .el-select__wrapper.is-focused,
+  .el-input__wrapper:focus-within, .el-textarea__inner:focus) {
+  border-color: var(--panel-accent) !important;
+  box-shadow: 0 0 0 2px #d9e9fc !important;
+}
+.api-workbench .legacy-panel :is(.el-input__inner, .el-select__selected-item, .el-select__selection,
+  .el-input-number__decrease, .el-input-number__increase, .el-select__caret) {
+  color: var(--panel-ink) !important;
+  font-family: inherit !important;
+}
+.api-workbench .legacy-panel .el-input__inner::placeholder,
+.api-workbench .legacy-panel .el-textarea__inner::placeholder,
+.api-workbench .legacy-panel .el-select__placeholder.is-transparent {
+  color: #65798d !important;
+}
+.api-workbench .legacy-panel :is(.el-input-number__decrease, .el-input-number__increase) {
+  background: var(--panel-tint) !important;
+  border-color: var(--panel-border) !important;
+}
+.api-workbench .legacy-panel .is-disabled :is(.el-input__wrapper, .el-textarea__inner),
+.api-workbench .legacy-panel .el-select__wrapper.is-disabled {
+  background: #edf2f7 !important;
+  border-color: var(--panel-border) !important;
+}
+.api-workbench .legacy-panel .el-switch {
+  --el-switch-on-color: var(--panel-accent) !important;
+  --el-switch-off-color: #8599ab !important;
+}
+.api-workbench .legacy-panel .el-switch__core { background: #8599ab !important; border-color: #8599ab !important; }
+.api-workbench .legacy-panel .el-switch.is-checked .el-switch__core {
+  background: var(--panel-accent) !important;
+  border-color: var(--panel-accent) !important;
+}
+.api-workbench .legacy-panel .el-switch__label { color: var(--panel-muted) !important; }
+.api-workbench .legacy-panel .el-switch__label.is-active { color: var(--panel-accent) !important; }
+.api-workbench .legacy-panel :is(.el-slider__runway, .el-progress-bar__outer) {
+  background: #dbe5ef !important;
+  border: 0 !important;
+}
+.api-workbench .legacy-panel :is(.el-slider__bar, .el-progress-bar__inner) { background: var(--panel-accent) !important; }
+.api-workbench .legacy-panel .el-slider__button {
+  background: #fff !important;
+  border: 2px solid var(--panel-accent) !important;
+  box-shadow: none !important;
+}
+.api-workbench .legacy-panel .el-slider__stop { background: #829cba !important; }
+.api-workbench .legacy-panel :is(.el-slider__marks-text, .el-progress__text) { color: var(--panel-muted) !important; }
+.api-workbench .legacy-panel .el-slider__runway.is-disabled :is(.el-slider__bar, .el-slider__button) {
+  background: #92a4b5 !important;
+  border-color: #758a9e !important;
+}
+.api-workbench .legacy-panel .el-color-picker__trigger { border-color: var(--panel-field-border) !important; }
+.api-workbench .legacy-panel .sequence-status [style*="height: 4px"] { background: #dbe5ef !important; }
+.api-workbench .legacy-panel .sequence-status [style*="height: 100%"] { background: var(--panel-accent) !important; }
+
+@container (max-width: 415px) {
+  .api-workbench .legacy-panel .el-form-item { flex-direction: column; }
+  .api-workbench .legacy-panel .el-form-item__label {
+    width: 100%;
+    flex: none;
+    min-height: 0;
+    padding: 0;
+    margin: 0 0 5px;
+  }
+  .api-workbench .legacy-panel .el-form-item__content { width: 100%; flex-basis: auto; }
+  .api-workbench .legacy-panel .coordinate-row {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 108px), 1fr));
+  }
+  .api-workbench .legacy-panel .control-grid { grid-template-columns: minmax(0, 1fr); }
+  .api-workbench .legacy-panel :is(.height-demo .section, .layer-items) { overflow-x: auto; }
+}
