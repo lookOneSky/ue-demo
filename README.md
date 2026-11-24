@@ -23,12 +23,4 @@ npm run dev
 
 `npm run build` 会先执行严格 TypeScript 检查，再打包。项目现有类型错误仍需另行整理；只打包 Web 前端可运行 `npx vite build`。`npm run docs`、`npm run docs:html` 和 `npm run docs:all` 使用 TypeScript 解析项目的 JS/JSDoc，生成 Markdown 或 HTML 文档。
 
-如需运行或重新打包 `Pack/SignallingWebServer`，仍需从原 GitLab 提交恢复 `app.cjs`：
-
-```powershell
-git -c http.proxy= -c https.proxy= fetch --no-tags --depth=1 http://gitlab.internal.daspatial.com/das-wenbo/szwd/pages/ue-demo.git 4f43b1b6a4ae91934eb73091f4fc658986e487cc
-$archive = (New-TemporaryFile).FullName
-git archive --format=tar "--output=$archive" FETCH_HEAD -- Pack/SignallingWebServer/app.cjs
-tar -xf $archive
-Remove-Item -LiteralPath $archive
-```
+`Pack/SignallingWebServer/app.cjs` 已随仓库提交，克隆后可直接用于运行或重新打包信令服务。

@@ -33,5 +33,4 @@ dist-ssr
 /Pack/*
 !/Pack/*.bat
 !/Pack/SignallingWebServer/
-/Pack/SignallingWebServer/app.cjs
 /Pack/SignallingWebServer/pkg.package.json
