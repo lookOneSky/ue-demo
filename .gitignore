@@ -27,7 +27,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-/docs
+/docs/*
+!/docs/api-demo-preview/
 /nginx-deploy
 /Electron/
 /Pack/*

@@ -4,6 +4,10 @@ This template should help get you started developing with Vue 3 and TypeScript i
 
 Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
 
+## APIDemo 界面设计
+
+[蓝白色工作台设计记录与预览](docs/api-demo-preview/README.md)
+
 ## 本地开发
 
 环境要求：Node.js 22.12+、npm 11.16+。在项目根目录执行一次安装即可准备好 Web 前端，包括项目定制的 UE 5.3 像素流送库：

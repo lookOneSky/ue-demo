@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#183c88">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='8' fill='%231a408c'/%3E%3Cpath d='m5 26 11-18h7L12 26zm18-16 10 16h-8l-5-10zM5 29h28l-3 4H3z' fill='white'/%3E%3C/svg%3E">
+  <title>示例工作台 · DAS API Demo</title>
+  <link rel="stylesheet" href="studio.css">
+  <link rel="stylesheet" href="guide.css">
+  <script defer src="examples.js"></script>
+  <script defer src="guide.js"></script>
+  <script defer src="studio.js"></script>
+</head>
+<body>
+  <a class="skip" href="#workspace">跳到工作区</a>
+  <header class="masthead">
+    <button class="nav-trigger icon-button" type="button" aria-label="打开示例目录" aria-controls="catalog" aria-expanded="false" data-icon="menu"></button>
+    <div class="brand" aria-label="DAS API Demo">
+      <svg class="brand-mark" width="35" height="34" viewBox="0 0 38 36" fill="none" aria-hidden="true">
+        <path d="M2 25 16 4h8L10 25z" fill="#fff"/>
+        <path d="m24 6 11 19h-9l-6-11z" fill="#91c8ff"/>
+        <path d="M2 30h33l-4 5H0z" fill="#b4d9ff"/>
+      </svg>
+      <strong>DAS</strong><i></i><span>API Demo</span>
+    </div>
+    <nav class="top-links" aria-label="工作区视图">
+      <button id="studio-link" aria-current="page" type="button"><i data-icon="layout"></i>示例工作台</button>
+      <button id="guide-link" type="button"><i data-icon="swatches"></i>样式规范</button>
+    </nav>
+    <button class="docs-link" id="show-reference" type="button"><i data-icon="book"></i>接口参考</button>
+  </header>
+
+  <div class="app-shell">
+    <button class="scrim" aria-label="关闭目录" type="button" hidden></button>
+    <aside id="catalog" class="sidebar" aria-label="示例目录">
+      <div class="side-intro"><h2>示例目录</h2><button type="button" id="hide-catalog" class="icon-button" aria-label="收起示例目录" title="收起示例目录" data-icon="panel"></button></div>
+      <label class="search"><i data-icon="search"></i><input id="search" type="search" placeholder="搜索示例或接口" aria-label="搜索示例或接口"><kbd>/</kbd></label>
+      <nav id="example-nav" class="example-nav" aria-label="按类别选择示例"></nav>
+      <div class="side-bottom"><span class="connection-symbol"><i data-icon="monitor"></i></span>
+        <div><strong>本地设计预览</strong><small>使用模拟数据</small></div>
+      </div>
+    </aside>
+
+    <main id="workspace" tabindex="-1">
+      <div class="contents">
+        <section id="studio-view" aria-label="示例工作台">
+          <div class="breadcrumb"><i data-icon="layout"></i><span>示例工作台</span><i data-icon="chevron"></i><span id="crumb-group"></span><i data-icon="chevron"></i><b id="crumb-leaf"></b></div>
+          <div class="page-title"><h1 id="example-heading"></h1><code id="api-owner"></code></div>
+          <p id="example-description" class="lead"></p>
+          <div class="work-grid">
+            <section class="card viewport" id="viewport" aria-labelledby="viewport-title">
+              <div class="card-heading">
+                <div class="panel-title"><i data-icon="cube"></i><h2 id="viewport-title">场景视口</h2></div>
+                <button class="quiet-button" id="expand-scene" aria-expanded="false" type="button"><i data-icon="expand"></i><span>放大视口</span></button>
+              </div>
+              <div class="scene" id="scene">
+                <div class="scene-photo" id="scene-photo"><img src="../../src/assets/images/dongji.png" alt="武当山雪景，山脊上的建筑群与覆雪的山峰"></div>
+                <div class="scene-shade"></div>
+                <div class="view-tag"><span></span>透视视图</div>
+                <div class="compass" aria-hidden="true"><b>N</b><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="14"/><path d="m17 5 4 19-6-6z" fill="white"/><path d="m17 5-6 19 4-6z" fill="#89aeed"/></svg></div>
+                <div class="scene-pin" id="scene-pin"><span class="pin-target"></span><span class="pin-text" id="pin-text">相机点位1</span></div>
+                <div class="scene-caption"><span class="scene-kicker"><i data-icon="pin"></i>示例场景</span><strong>武当山</strong></div>
+                <div class="zoom-tools" aria-label="场景图缩放"><button type="button" id="zoom-in" aria-label="放大场景图" title="放大场景图" data-icon="plus"></button><button type="button" id="zoom-out" aria-label="缩小场景图" title="缩小场景图" data-icon="minus"></button><button type="button" id="zoom-reset" aria-label="重置场景图" title="重置场景图" data-icon="focus"></button></div>
+              </div>
+              <div class="view-foot"><span><i data-icon="image"></i>静态场景预览</span><span class="zoom-value" id="zoom-value">100%</span></div>
+            </section>
+
+            <form class="card settings" id="params">
+              <div class="card-heading">
+                <div class="panel-title"><i data-icon="sliders"></i><h2>参数配置</h2></div>
+                <button class="quiet-button" id="reset-form" type="button"><i data-icon="reset"></i>重置</button>
+              </div>
+              <div class="form-body">
+                <label class="field"><span>接口方法</span><select id="method"></select></label>
+                <div id="method-fields"></div>
+              </div>
+              <div class="form-action"><button type="submit" class="primary"><i data-icon="play"></i>运行示例</button></div>
+            </form>
+          </div>
+          <section class="card console" aria-label="调用示例与运行结果">
+            <div class="console-toolbar">
+              <div class="console-tabs" role="tablist" aria-label="示例输出">
+                <button class="console-tab" id="code-tab" role="tab" aria-controls="code-panel" aria-selected="true" type="button"><i data-icon="code"></i>调用示例</button>
+                <button class="console-tab" id="result-tab" role="tab" aria-controls="result-panel" aria-selected="false" tabindex="-1" type="button"><i data-icon="terminal"></i>运行结果</button>
+              </div>
+              <button class="quiet-button copy" id="copy" type="button"><i data-icon="copy"></i><span>复制代码</span></button>
+            </div>
+            <div id="code-panel" class="code-panel" role="tabpanel" aria-labelledby="code-tab">
+              <div class="file-name"><i class="js-icon">JS</i><span id="file-name"></span></div>
+              <pre id="code-lines" tabindex="0" aria-label="JavaScript 调用代码"></pre>
+            </div>
+            <div id="result-panel" class="result-panel" role="tabpanel" aria-labelledby="result-tab" hidden></div>
+          </section>
+        </section>
+        <section id="guide-view" aria-label="样式规范" hidden></section>
+      </div>
+    </main>
+  </div>
+  <dialog class="reference-dialog" id="reference" aria-labelledby="reference-title">
+    <div class="card-heading">
+      <div class="panel-title"><i data-icon="book"></i><h2 id="reference-title">接口参考</h2></div>
+      <button class="icon-button" id="close-reference" type="button" aria-label="关闭接口参考" data-icon="close"></button>
+    </div>
+    <div id="reference-body"></div>
+  </dialog>
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+</body>
+</html>
