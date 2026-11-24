@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12.0",
+    "npm": ">=11.16.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
@@ -13,16 +17,21 @@
     "docs:all": "node scripts/generate-docs.js --all"
   },
   "dependencies": {
+    "@epicgames-ps/lib-pixelstreamingfrontend-ue5.3": "file:vendor/@epicgames-ps/lib-pixelstreamingfrontend-ue5.3",
+    "@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.3": "file:vendor/@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.3",
     "element-plus": "^2.8.7",
     "sass": "^1.80.6",
     "vue": "^3.5.12"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^5.1.4",
-    "documentation": "^14.0.3",
-    "glob": "^13.0.0",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "glob": "^14.0.6",
     "typescript": "~5.6.2",
-    "vite": "^5.4.10",
-    "vue-tsc": "^2.1.8"
+    "vite": "^6.4.6",
+    "vue-tsc": "^3.3.14"
+  },
+  "allowScripts": {
+    "@parcel/watcher@2.6.0": true,
+    "esbuild@0.25.12": true
   }
 }

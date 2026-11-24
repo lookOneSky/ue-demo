@@ -1,2 +1,2 @@
 # 按原始字节保存定制依赖快照
-node_modules/@epicgames-ps/** -text
+vendor/@epicgames-ps/*/dist/** -text

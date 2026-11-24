@@ -6,15 +6,22 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 
 ## 本地开发
 
-项目定制的 UE 5.3 像素流送库已单独保存在 `node_modules/@epicgames-ps` 并纳入 Git，项目运行以这份依赖快照为准。新克隆后，在项目根目录用 PowerShell 逐行执行以下命令。
+环境要求：Node.js 22.12+、npm 11.16+。在项目根目录执行一次安装即可准备好 Web 前端，包括项目定制的 UE 5.3 像素流送库：
 
 ```powershell
-npm install --no-package-lock
-git restore --source=HEAD --worktree -- node_modules/@epicgames-ps
+npm install
 npm run dev
 ```
 
-重新安装 npm 依赖后，重新执行上述 `git restore` 命令恢复定制库；若有本地修改，先提交或备份。只打包 Web 前端可运行 `npx vite build`。
+定制库保存在 `vendor/@epicgames-ps`，通过本地 npm 依赖自动安装，不再需要手工恢复 `node_modules`。`package-lock.json` 固定依赖版本；`package.json` 的 `allowScripts` 已登记构建依赖需要的安装脚本。更新这些依赖后应重新审核对应版本的脚本。
+
+仅开发和打包 Web 前端不需要初始化子模块。需要编辑像素流送上游源码、运行信令服务或相关打包流程时，再执行原有脚本，递归拉取主仓库锁定版本的子模块：
+
+```powershell
+.\scripts\PullSubmodules.bat
+```
+
+`npm run build` 会先执行严格 TypeScript 检查，再打包。项目现有类型错误仍需另行整理；只打包 Web 前端可运行 `npx vite build`。`npm run docs`、`npm run docs:html` 和 `npm run docs:all` 使用 TypeScript 解析项目的 JS/JSDoc，生成 Markdown 或 HTML 文档。
 
 如需运行或重新打包 `Pack/SignallingWebServer`，仍需从原 GitLab 提交恢复 `app.cjs`：
 

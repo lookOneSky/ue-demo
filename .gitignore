@@ -12,11 +12,8 @@ dist
 dist-ssr
 *.local
 
-# 保留项目定制的像素流送依赖
-!/node_modules/
-/node_modules/*
-!/node_modules/@epicgames-ps/
-!/node_modules/@epicgames-ps/*/dist/
+# 项目定制的像素流送依赖源码快照
+!/vendor/@epicgames-ps/*/dist/
 
 # Editor directories and files
 .vscode/*
