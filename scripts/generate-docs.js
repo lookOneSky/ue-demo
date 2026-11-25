@@ -88,12 +88,15 @@ async function generateDocs() {
   // Markdown 和 HTML 共享一次解析结果，不再启动 npx 子进程。
   for (const { category, classes } of await loadDocData()) {
     if (classes.length === 0) continue;
+    const itemAnchor = item => 'api-' + anchorFor(category.name) + '-' + anchorFor(item.name);
     fullMarkdown += `## ${category.name}\n\n> ${category.description}\n\n### 类和类型列表\n\n`;
     for (const item of classes) {
       const description = item.description.split('\n')[0];
-      fullMarkdown += `- [${item.name}](#${anchorFor(item.name)})${description ? ` - ${description}` : ''}\n`;
+      fullMarkdown += `- [${item.name}](#${itemAnchor(item)})${description ? ` - ${description}` : ''}\n`;
     }
-    fullMarkdown += '\n' + classes.map(renderItemMarkdown).join('\n') + '---\n\n';
+    fullMarkdown += '\n' + classes.map(item =>
+      `<a id="${itemAnchor(item)}"></a>\n\n` + renderItemMarkdown(item)
+    ).join('\n') + '---\n\n';
   }
 
   // 写入文件
@@ -113,6 +116,7 @@ async function generateHtmlDocs() {
   await fs.mkdir('docs/api-html', { recursive: true });
 
   const docData = await loadDocData();
+  const documentedNames = new Set(docData.flatMap(({ classes }) => classes.map(item => item.name)));
 
   // 构建树形结构
   const treeData = buildTree(docData);
@@ -291,7 +295,9 @@ ${docData.map(({ classes }) => classes.map(cls => {
   let extendsHtml = '';
   if (cls.augments && cls.augments.length > 0) {
     const parentClass = cls.augments[0].name;
-    extendsHtml = `<div class="class-extends">继承: <a href="#${escapeHtml(parentClass)}" class="parent-link">${escapeHtml(parentClass)}</a></div>`;
+    const name = escapeHtml(parentClass);
+    const parent = documentedNames.has(parentClass) ? `<a href="#${name}" class="parent-link">${name}</a>` : name;
+    extendsHtml = `<div class="class-extends">继承: ${parent}</div>`;
   }
 
   return `    <div class="class-section" id="${escapeHtml(cls.name)}">

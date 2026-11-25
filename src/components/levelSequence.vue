@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { LevelSequenceControl } from './lib/Scene/LevelSequenceControl.js'; // 导入序列控制
-import { fa } from 'element-plus/es/locales.mjs';
-import { FALSE } from 'sass';
 
 // LevelSequenceControl功能测试
 const sequencePath = ref("/Game/C_WDS/WDS_Video/Z_Video_S/WDS_Z_LHJD.WDS_Z_LHJD");
@@ -41,7 +39,7 @@ const handleSetSequence = async () => {
 
 // 播放序列
 const handlePlaySequence = async () => {
-  const result = await LevelSequenceControl.playSequence(true, 1.0);
+  const result = await LevelSequenceControl.playSequence(true);
   console.log('播放序列结果:', result);
 };
 
@@ -125,4 +123,4 @@ const handleGetStatus = async () => {
       </div>
     </div>
   </div>
-</template> 
+</template>

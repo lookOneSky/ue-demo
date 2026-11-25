@@ -1,4 +1,4 @@
-import { ExcuteUEFun } from "../ExcuteUEFun.js";
+import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
 
 class DasSplineWalkClass {
     className = "DasSplineWalk";
@@ -36,7 +36,7 @@ class DasSplineWalkClass {
      */
     addCallBack(fun) {
         window.viewer.addResponseEventListener(this.className, (json) => {
-            let obj = JSON.parse(json);
+            let obj = parseUEMessage(json);
             if (obj.class == this.className && fun != null) {
                 fun(obj);
             }

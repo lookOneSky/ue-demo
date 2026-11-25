@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { ref, inject, watch } from 'vue'
+import { useMessageSender } from "../utils/useMessageSender"
+import { ref, watch } from 'vue'
 import BeginText from './beginText.vue'
 import ChapterText from './chapterText.vue'
-defineProps<{ msg: string }>()
+defineProps<{ msg?: string }>()
 
-const onMessage = inject('onMessage')
+const onMessage = useMessageSender()
 const showIntroText = ref(false); // 首页介绍显隐
 const showChapterText = ref(false); // 章节标题显隐
 
 const currentStep = ref(0);
-watch(() => currentStep.value, (newValue, oldValue) => {
+watch(() => currentStep.value, newValue => {
     let sequenceKey = "Test";
     let isStaticView = false;
     showIntroText.value = newValue === 1; // 显示启动页介绍文字的节点

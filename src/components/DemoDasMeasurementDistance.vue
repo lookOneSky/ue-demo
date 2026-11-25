@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementDistance } from './lib/Tool/DasToolMeasurementDistance.js'
 
@@ -62,6 +63,9 @@ const loadColors = async () => {
     colorOptions.forEach(o => { if (result?.[o.key]) colors[o.key] = arrayToRgba(result[o.key]) })
   })
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return tool.finishTool()
+})
 </script>
 
 <template>

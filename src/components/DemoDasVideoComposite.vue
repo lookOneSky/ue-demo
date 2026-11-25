@@ -1,17 +1,25 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
+import { computed, inject, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { DasVideoCompositeLayer } from "./lib/Layer/DasVideoCompositeLayer.js"
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 
-// 图层状态
-const layerVisible = ref(true)
-const currentLayerId = ref<any>(null)
-const isCapturing = ref(false)
+interface ViewerSession {
+  videoComposite?: { layer: any; visible: boolean; capturing: boolean }
+}
+
+const getShareData = inject<(key: string) => unknown>('getShareData')
+const session = computed(() => getShareData?.('viewerSession') as ViewerSession | undefined)
+const video = computed(() => session.value?.videoComposite)
+const currentLayer = computed(() => video.value?.layer)
+const layerVisible = computed(() => video.value?.visible ?? true)
+const isCapturing = computed(() => video.value?.capturing ?? false)
+const creating = computed(() => !!video.value && !currentLayer.value)
 
 // 工具状态
 const isToolActive = ref(false)
 const selectedPoint = ref<number[]>([])
+const rotationAxes = ['pitch', 'yaw', 'roll'] as const
+let pointToolSession: ViewerSession | undefined
 
 // 视频合成参数
 const videoParams = ref({
@@ -53,8 +61,8 @@ const eulerToQuaternion = (pitch: number, yaw: number, roll: number) => {
   const sr = Math.sin(rollRad * 0.5)
   
   const w = cr * cp * cy + sr * sp * sy
-  const x = sr * cp * cy - cr * sp * sy
-  const y = cr * sp * cy + sr * cp * sy
+  const x = cr * sp * sy - sr * cp * cy
+  const y = -cr * sp * cy - sr * cp * sy
   const z = cr * cp * sy - sr * sp * cy
   
   return [x, y, z, w]
@@ -65,9 +73,9 @@ const quaternionToEuler = (x: number, y: number, z: number, w: number) => {
   // 计算欧拉角（弧度）
   const sinr_cosp = 2 * (w * x + y * z)
   const cosr_cosp = 1 - 2 * (x * x + y * y)
-  const roll = Math.atan2(sinr_cosp, cosr_cosp)
+  const roll = Math.atan2(-sinr_cosp, cosr_cosp)
   
-  const sinp = 2 * (w * y - z * x)
+  const sinp = 2 * (z * x - w * y)
   const pitch = Math.abs(sinp) >= 1 ? Math.sign(sinp) * Math.PI / 2 : Math.asin(sinp)
   
   const siny_cosp = 2 * (w * z + x * y)
@@ -94,20 +102,28 @@ const updateQuaternionFromEuler = () => {
 
 // 启动点工具
 const startPointTool = async () => {
+  const owner = session.value
+  if (!owner || pointToolSession === owner) return
+  pointToolSession = owner
   try {
     await DasPointsTool.setToCurrent()
+    if (pointToolSession !== owner || session.value !== owner) return
     isToolActive.value = true
     console.log('点工具已启动')
   } catch (error) {
+    if (pointToolSession === owner) pointToolSession = undefined
     console.error('启动点工具失败:', error)
   }
 }
 
 // 停止点工具
 const stopPointTool = async () => {
+  const owner = pointToolSession
+  pointToolSession = undefined
+  isToolActive.value = false
+  if (!owner || session.value !== owner) return
   try {
-    isToolActive.value = false
-    DasPointsTool.finishTool()
+    await DasPointsTool.finishTool()
     console.log('点工具已停止')
   } catch (error) {
     console.error('停止点工具失败:', error)
@@ -116,8 +132,10 @@ const stopPointTool = async () => {
 
 // 获取当前点位
 const getCurrentPoint = async () => {
+  const owner = pointToolSession
   try {
     const point = await DasPointsTool.getPointPosition()
+    if (!owner || owner !== session.value || owner !== pointToolSession || !Array.isArray(point)) return
     selectedPoint.value = point
     // 自动设置到Transform的位置中
     if (point && point.length >= 3) {
@@ -143,7 +161,12 @@ const clearPoints = async () => {
 
 // 创建视频合成图层
 const createVideoCompositeLayer = async () => {
+  const owner = session.value
+  if (!owner || owner.videoComposite) return
+  const state = reactive({ layer: null as any, visible: true, capturing: false })
+  owner.videoComposite = state
   try {
+    updateQuaternionFromEuler()
     const result = await DasVideoCompositeLayer.createInstance({
       param: {
         transform: videoParams.value.transform,
@@ -155,17 +178,19 @@ const createVideoCompositeLayer = async () => {
         visible: videoParams.value.frustumVisible
       }
     })
-    currentLayerId.value = result
+    if (session.value !== owner || result?.id == null || result.id === '') return
+    state.layer = result
     console.log('已创建视频合成图层:', result)
-    await loadAllSettings()
   } catch (error) {
     console.error('创建视频合成图层失败:', error)
+  } finally {
+    if (owner.videoComposite === state && !state.layer) delete owner.videoComposite
   }
 }
 
 // 检查图层是否已创建
 const checkLayerExists = () => {
-  if (!currentLayerId.value) {
+  if (!currentLayer.value) {
     console.warn('请先创建视频合成图层')
     return false
   }
@@ -180,7 +205,7 @@ const setActorTransform = async () => {
     // 先从欧拉角更新四元数
     updateQuaternionFromEuler()
     
-    await currentLayerId.value.setActorTransform(videoParams.value.transform)
+    await currentLayer.value.setActorTransform(videoParams.value.transform)
     console.log('已设置Actor Transform:', videoParams.value.transform)
   } catch (error) {
     console.error('设置Actor Transform失败:', error)
@@ -192,7 +217,9 @@ const getActorTransform = async () => {
   try {
     if (!checkLayerExists()) return
     
-    const transform = await currentLayerId.value.getActorTransform()
+    const layer = currentLayer.value
+    const transform = await layer.getActorTransform()
+    if (currentLayer.value !== layer) return
     videoParams.value.transform = transform
     
     // 同步更新欧拉角显示
@@ -217,8 +244,9 @@ const startVideoCapture = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.startVideoCapture()
-    isCapturing.value = true
+    const state = video.value!
+    await state.layer.startVideoCapture()
+    state.capturing = true
     console.log('已开始视频捕获')
   } catch (error) {
     console.error('开始视频捕获失败:', error)
@@ -230,8 +258,9 @@ const stopVideoCapture = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.stopVideoCapture()
-    isCapturing.value = false
+    const state = video.value!
+    await state.layer.stopVideoCapture()
+    state.capturing = false
     console.log('已停止视频捕获')
   } catch (error) {
     console.error('停止视频捕获失败:', error)
@@ -243,7 +272,7 @@ const focusToThis = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.focusToThis()
+    await currentLayer.value.focusToThis()
     console.log('已聚焦到此相机')
   } catch (error) {
     console.error('聚焦到此相机失败:', error)
@@ -255,7 +284,7 @@ const setFrustumComponentVisible = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setFrustumComponentVisible(videoParams.value.frustumVisible)
+    await currentLayer.value.setFrustumComponentVisible(videoParams.value.frustumVisible)
     console.log('已设置视椎体组件可见性:', videoParams.value.frustumVisible)
   } catch (error) {
     console.error('设置视椎体组件可见性失败:', error)
@@ -267,7 +296,7 @@ const setVideoUrl = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setVideoUrl(videoParams.value.videoUrl)
+    await currentLayer.value.setVideoUrl(videoParams.value.videoUrl)
     console.log('已设置视频URL:', videoParams.value.videoUrl)
   } catch (error) {
     console.error('设置视频URL失败:', error)
@@ -279,7 +308,7 @@ const setFOV = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setFOV(videoParams.value.fov)
+    await currentLayer.value.setFOV(videoParams.value.fov)
     console.log('已设置视场角:', videoParams.value.fov)
   } catch (error) {
     console.error('设置视场角失败:', error)
@@ -291,7 +320,7 @@ const setNearClipPlane = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setNearClipPlane(videoParams.value.nearClipPlane)
+    await currentLayer.value.setNearClipPlane(videoParams.value.nearClipPlane)
     console.log('已设置近裁剪面:', videoParams.value.nearClipPlane)
   } catch (error) {
     console.error('设置近裁剪面失败:', error)
@@ -303,7 +332,7 @@ const setFarClipPlane = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setFarClipPlane(videoParams.value.farClipPlane)
+    await currentLayer.value.setFarClipPlane(videoParams.value.farClipPlane)
     console.log('已设置远裁剪面:', videoParams.value.farClipPlane)
   } catch (error) {
     console.error('设置远裁剪面失败:', error)
@@ -315,19 +344,28 @@ const setAspectRatio = async () => {
   try {
     if (!checkLayerExists()) return
     
-    await currentLayerId.value.setAspectRatio(videoParams.value.aspectRatio)
+    await currentLayer.value.setAspectRatio(videoParams.value.aspectRatio)
     console.log('已设置宽高比:', videoParams.value.aspectRatio)
   } catch (error) {
     console.error('设置宽高比失败:', error)
   }
 }
 
+const projectionFields = [
+  { key: 'fov', label: '视场角（度）', min: 1, max: 179, step: 1, precision: undefined, apply: setFOV },
+  { key: 'nearClipPlane', label: '近裁剪面', min: 0.1, max: 1000, step: 0.1, precision: undefined, apply: setNearClipPlane },
+  { key: 'farClipPlane', label: '远裁剪面', min: 10, max: 100000, step: 10, precision: undefined, apply: setFarClipPlane },
+  { key: 'aspectRatio', label: '宽高比', min: 0.1, max: 10, step: 0.01, precision: 2, apply: setAspectRatio },
+] as const
+
 // 获取所有参数
 const loadAllSettings = async () => {
   try {
     if (!checkLayerExists()) return
     
-    const allParams = await currentLayerId.value.getAll()
+    const layer = currentLayer.value
+    const allParams = await layer.getAll()
+    if (currentLayer.value !== layer) return
     videoParams.value = {
       ...videoParams.value,
       transform: allParams.transform,
@@ -374,7 +412,7 @@ const updateAllSettings = async () => {
       visible: videoParams.value.frustumVisible
     }
     
-    await currentLayerId.value.updateAll(params)
+    await currentLayer.value.updateAll(params)
     console.log('已更新所有参数:', params)
   } catch (error) {
     console.error('更新所有参数失败:', error)
@@ -386,11 +424,7 @@ const locateLayer = async () => {
   try {
     if (!checkLayerExists()) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    const allLayers = await pRoot.getAllLayer()
-    if (allLayers && allLayers.length > 0) {
-      await allLayers[0].flyToThis()
-    }
+    await currentLayer.value.flyToThis()
   } catch (error) {
     console.error('定位图层失败:', error)
   }
@@ -401,9 +435,10 @@ const toggleLayerVisibility = async () => {
   try {
     if (!checkLayerExists()) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    layerVisible.value = !layerVisible.value
-    await pRoot.setVisible(layerVisible.value)
+    const state = video.value!
+    const visible = !layerVisible.value
+    await state.layer.setVisible(visible)
+    state.visible = visible
   } catch (error) {
     console.error('切换图层可见性失败:', error)
   }
@@ -414,417 +449,129 @@ const deleteLayer = async () => {
   try {
     if (!checkLayerExists()) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
-    currentLayerId.value = null
-    isCapturing.value = false
+    const owner = session.value!
+    const state = owner.videoComposite!
+    await state.layer.removeInstance()
+    if (owner.videoComposite === state) delete owner.videoComposite
   } catch (error) {
     console.error('删除图层失败:', error)
   }
 }
+watch(currentLayer, layer => {
+  if (layer) loadAllSettings()
+}, { immediate: true })
+watch(session, () => {
+  pointToolSession = undefined
+  isToolActive.value = false
+  selectedPoint.value = []
+}, { flush: 'sync' })
+onBeforeUnmount(stopPointTool)
 </script>
 
 <template>
   <div>
-    <div class="title">视频合成图层控制</div>
-    <div class="split_line"></div>
+    <section class="control-section">
+      <h4>视频源与创建</h4>
+      <el-form-item label="视频 URL">
+        <el-input v-model="videoParams.videoUrl" aria-label="视频 URL" placeholder="请输入视频 URL" />
+        <el-button size="small" :disabled="!currentLayer" @click="setVideoUrl">应用视频地址</el-button>
+      </el-form-item>
 
-    <!-- 点工具控制 -->
-    <div class="tool-control-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">点工具控制</h4>
-      
-      <div style="margin: 15px 0; display: flex; flex-wrap: wrap;">
-        <el-button 
-          :type="isToolActive ? 'danger' : 'primary'" 
-          @click="isToolActive ? stopPointTool() : startPointTool()"
-          style="margin: 5px;">
-          {{ isToolActive ? '停止点工具' : '启动点工具' }}
-        </el-button>
-        
-        <el-button 
-          type="primary" 
-          @click="getCurrentPoint"
-          :disabled="!isToolActive"
-          style="margin: 5px;">
-          获取当前点位
-        </el-button>
-        
-        <el-button 
-          type="danger" 
-          @click="clearPoints"
-          :disabled="!isToolActive || selectedPoint.length === 0"
-          style="margin: 5px;">
-          清除点位
-        </el-button>
-      </div>
-      
-      <div v-if="selectedPoint.length > 0" class="point-info">
-        <p>当前选中点位: [{{ selectedPoint.join(', ') }}]</p>
-      </div>
-    </div>
+      <details class="settings">
+        <summary>取点与空间变换</summary>
+        <div class="action-row">
+          <el-button :type="isToolActive ? 'danger' : 'primary'" :disabled="!session" @click="isToolActive ? stopPointTool() : startPointTool()">
+            {{ isToolActive ? '停止点工具' : '启动点工具' }}
+          </el-button>
+          <el-button :disabled="!isToolActive" @click="getCurrentPoint">获取当前点位</el-button>
+          <el-button :disabled="!isToolActive || !selectedPoint.length" @click="clearPoints">清除点位</el-button>
+        </div>
+        <p v-if="selectedPoint.length">已选点位 [{{ selectedPoint.join(', ') }}]</p>
 
-    <!-- 图层操作控制 -->
-    <div class="layer-control-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">图层控制</h4>
-      
-      <div style="margin: 15px 0; display: flex; flex-wrap: wrap;">
-        <el-button 
-          type="primary" 
-          @click="createVideoCompositeLayer" 
-          style="margin: 5px;">
-          创建视频合成图层
-        </el-button>
-        
-        <el-button 
-          type="primary" 
-          @click="locateLayer" 
-          style="margin: 5px;"
-          :disabled="!currentLayerId">
-          定位图层
-        </el-button>
-        
-        <el-button 
-          :type="layerVisible ? 'warning' : 'success'" 
-          @click="toggleLayerVisibility"
-          style="margin: 5px;"
-          :disabled="!currentLayerId">
-          {{ layerVisible ? '隐藏图层' : '显示图层' }}
-        </el-button>
-        
-        <el-button 
-          type="danger" 
-          @click="deleteLayer"
-          style="margin: 5px;"
-          :disabled="!currentLayerId">
-          删除图层
-        </el-button>
-      </div>
-    </div>
+        <fieldset>
+          <legend>位置</legend>
+          <div class="vector">
+            <div v-for="(axis, index) in ['X', 'Y', 'Z']" :key="axis">
+              <span>{{ axis }}</span>
+              <el-input-number v-model="videoParams.transform.translation[index]" :aria-label="'位置 ' + axis"
+                :precision="6" :step="0.1" controls-position="right" />
+            </div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>旋转（度）</legend>
+          <div class="vector">
+            <div v-for="axis in rotationAxes" :key="axis">
+              <span>{{ axis }}</span>
+              <el-input-number v-model="videoParams.eulerRotation[axis]" :aria-label="'旋转 ' + axis"
+                :min="-180" :max="180" :step="1" controls-position="right" />
+            </div>
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend>缩放</legend>
+          <div class="vector">
+            <div v-for="(axis, index) in ['X', 'Y', 'Z']" :key="axis">
+              <span>{{ axis }}</span>
+              <el-input-number v-model="videoParams.transform.scale3D[index]" :aria-label="'缩放 ' + axis"
+                :min="0.1" :max="10" :step="0.1" controls-position="right" />
+            </div>
+          </div>
+        </fieldset>
+        <div class="action-row">
+          <el-button :disabled="!currentLayer" @click="setActorTransform">应用空间变换</el-button>
+          <el-button :disabled="!currentLayer" @click="getActorTransform">读取空间变换</el-button>
+        </div>
+      </details>
 
-    <!-- 视频捕获控制 -->
-    <div class="capture-control-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">视频捕获控制</h4>
-      
-      <div style="margin: 15px 0; display: flex; flex-wrap: wrap;">
-        <el-button 
-          :type="isCapturing ? 'danger' : 'success'" 
-          @click="isCapturing ? stopVideoCapture() : startVideoCapture()"
-          :disabled="!currentLayerId"
-          style="margin: 5px;">
+      <details class="settings">
+        <summary>相机投影与裁剪</summary>
+        <el-form-item v-for="field in projectionFields" :key="field.key" :label="field.label">
+          <el-input-number v-model="videoParams[field.key]" :aria-label="field.label"
+            :min="field.min" :max="field.max" :step="field.step" :precision="field.precision" controls-position="right" />
+          <el-button size="small" :aria-label="'应用' + field.label" :disabled="!currentLayer" @click="field.apply">应用</el-button>
+        </el-form-item>
+        <el-form-item label="视锥体">
+          <el-switch v-model="videoParams.frustumVisible" aria-label="视锥体可见性" active-text="可见" inactive-text="隐藏"
+            @change="currentLayer && setFrustumComponentVisible()" />
+        </el-form-item>
+      </details>
+
+      <div class="action-row">
+        <el-button type="primary" :disabled="!session || !!video" :loading="creating" @click="createVideoCompositeLayer">创建视频合成图层</el-button>
+        <el-button :disabled="!currentLayer" @click="updateAllSettings">更新所有参数</el-button>
+        <el-button :disabled="!currentLayer" @click="loadAllSettings">获取所有参数</el-button>
+      </div>
+    </section>
+
+    <section class="control-section">
+      <h4>捕获与图层操作</h4>
+      <div class="status-panel" :class="{ active: isCapturing }">
+        <p>{{ currentLayer ? '当前图层 ID ' + currentLayer.id : '未创建图层' }}</p>
+        <p>视频捕获状态：{{ isCapturing ? '正在捕获' : '未捕获' }}</p>
+        <p v-if="isToolActive">点工具已激活</p>
+      </div>
+      <div class="action-row">
+        <el-button :type="isCapturing ? 'danger' : 'success'" :disabled="!currentLayer" @click="isCapturing ? stopVideoCapture() : startVideoCapture()">
           {{ isCapturing ? '停止视频捕获' : '开始视频捕获' }}
         </el-button>
-        
-        <el-button 
-          type="primary" 
-          @click="focusToThis"
-          :disabled="!currentLayerId"
-          style="margin: 5px;">
-          聚焦到此相机
-        </el-button>
+        <el-button :disabled="!currentLayer" @click="focusToThis">聚焦到此相机</el-button>
+        <el-button :disabled="!currentLayer" @click="locateLayer">定位图层</el-button>
+        <el-button :disabled="!currentLayer" @click="toggleLayerVisibility">{{ layerVisible ? '隐藏图层' : '显示图层' }}</el-button>
+        <el-button type="danger" :disabled="!currentLayer" @click="deleteLayer">删除图层</el-button>
       </div>
-    </div>
-
-    <!-- 视频设置 -->
-    <div class="video-settings-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">视频设置</h4>
-      
-      <el-form-item label="视频URL" class="ruihua">
-        <el-input 
-          v-model="videoParams.videoUrl" 
-          placeholder="请输入视频URL"
-          style="width: 300px;">
-        </el-input>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="setVideoUrl" 
-          style="margin-left: 10px;"
-          :disabled="!currentLayerId">
-          应用
-        </el-button>
-      </el-form-item>
-    </div>
-
-    <!-- Transform参数设置 -->
-    <div class="transform-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">Transform设置</h4>
-      
-      <!-- 位置设置 -->
-      <div class="param-section">
-        <h5 style="color: #E1BB82; margin: 10px 0;">位置 (Translation)</h5>
-        <el-form-item label="X" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.translation[0]" 
-            :precision="6"
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Y" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.translation[1]" 
-            :precision="6"
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Z" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.translation[2]" 
-            :precision="6"
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-      </div>
-      
-      <!-- 旋转设置 -->
-      <div class="param-section">
-        <h5 style="color: #E1BB82; margin: 10px 0;">旋转 (欧拉角)</h5>
-        <el-form-item label="Pitch" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.eulerRotation.pitch" 
-            :min="-180" 
-            :max="180" 
-            :step="1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Yaw" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.eulerRotation.yaw" 
-            :min="-180" 
-            :max="180" 
-            :step="1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Roll" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.eulerRotation.roll" 
-            :min="-180" 
-            :max="180" 
-            :step="1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-      </div>
-      
-      <!-- 缩放设置 -->
-      <div class="param-section">
-        <h5 style="color: #E1BB82; margin: 10px 0;">缩放 (Scale3D)</h5>
-        <el-form-item label="X" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.scale3D[0]" 
-            :min="0.1" 
-            :max="10" 
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Y" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.scale3D[1]" 
-            :min="0.1" 
-            :max="10" 
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-        
-        <el-form-item label="Z" class="ruihua">
-          <el-input-number 
-            v-model="videoParams.transform.scale3D[2]" 
-            :min="0.1" 
-            :max="10" 
-            :step="0.1" 
-            style="width: 120px;">
-          </el-input-number>
-        </el-form-item>
-      </div>
-      
-      <div style="margin: 15px 0; display: flex; flex-wrap: wrap;">
-        <el-button 
-          type="primary" 
-          @click="setActorTransform" 
-          style="margin: 5px;"
-          :disabled="!currentLayerId">
-          应用Transform
-        </el-button>
-        
-        <el-button 
-          type="success" 
-          @click="getActorTransform" 
-          style="margin: 5px;"
-          :disabled="!currentLayerId">
-          获取Transform
-        </el-button>
-      </div>
-    </div>
-
-    <!-- 相机参数设置 -->
-    <div class="camera-params-group">
-      <h4 style="color: #E1BB82; margin: 10px 0; font-size: 16px; border-bottom: 1px solid #E1BB82; padding-bottom: 5px;">相机参数设置</h4>
-      
-      <el-form-item label="视场角(度)" class="ruihua">
-        <el-input-number 
-          v-model="videoParams.fov" 
-          :min="1" 
-          :max="179" 
-          :step="1" 
-          style="width: 120px;">
-        </el-input-number>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="setFOV" 
-          style="margin-left: 10px;"
-          :disabled="!currentLayerId">
-          应用
-        </el-button>
-      </el-form-item>
-      
-      <el-form-item label="近裁剪面" class="ruihua">
-        <el-input-number 
-          v-model="videoParams.nearClipPlane" 
-          :min="0.1" 
-          :max="1000" 
-          :step="0.1" 
-          style="width: 120px;">
-        </el-input-number>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="setNearClipPlane" 
-          style="margin-left: 10px;"
-          :disabled="!currentLayerId">
-          应用
-        </el-button>
-      </el-form-item>
-      
-      <el-form-item label="远裁剪面" class="ruihua">
-        <el-input-number 
-          v-model="videoParams.farClipPlane" 
-          :min="10" 
-          :max="100000" 
-          :step="10" 
-          style="width: 120px;">
-        </el-input-number>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="setFarClipPlane" 
-          style="margin-left: 10px;"
-          :disabled="!currentLayerId">
-          应用
-        </el-button>
-      </el-form-item>
-      
-      <el-form-item label="宽高比" class="ruihua">
-        <el-input-number 
-          v-model="videoParams.aspectRatio" 
-          :min="0.1" 
-          :max="10" 
-          :step="0.01" 
-          :precision="2"
-          style="width: 120px;">
-        </el-input-number>
-        <el-button 
-          type="primary" 
-          size="small" 
-          @click="setAspectRatio" 
-          style="margin-left: 10px;"
-          :disabled="!currentLayerId">
-          应用
-        </el-button>
-      </el-form-item>
-      
-      <el-form-item label="视椎体可见性" class="ruihua">
-        <el-switch 
-          v-model="videoParams.frustumVisible"
-          active-text="可见" 
-          inactive-text="隐藏"
-          style="margin-left: 15px;"
-          active-color="#E1BB82"
-          @change="setFrustumComponentVisible">
-        </el-switch>
-      </el-form-item>
-      
-      <el-button 
-        type="primary" 
-        @click="updateAllSettings" 
-        style="margin: 15px;"
-        :disabled="!currentLayerId">
-        更新所有参数
-      </el-button>
-      
-      <el-button 
-        type="success" 
-        @click="loadAllSettings" 
-        style="margin: 15px;"
-        :disabled="!currentLayerId">
-        获取所有参数
-      </el-button>
-    </div>
-
-    <!-- 状态提示 -->
-    <div class="status-panel" :class="{ 'active': isCapturing }">
-      <p v-if="currentLayerId">当前图层ID: {{ currentLayerId.id }}</p>
-      <p v-else>未创建图层</p>
-      <p v-if="isToolActive">点工具已激活</p>
-      <p>视频捕获状态: {{ isCapturing ? '正在捕获' : '未捕获' }}</p>
-      <p>视频URL: {{ videoParams.videoUrl || '未设置' }}</p>
-      <p>视椎体可见性: {{ videoParams.frustumVisible ? '可见' : '隐藏' }}</p>
-    </div>
+    </section>
   </div>
 </template>
 
-<style lang="scss" scoped>
-.tool-control-group, .layer-control-group, .capture-control-group, .video-settings-group, .transform-group, .camera-params-group {
-  margin: 15px 0;
-}
-
-.point-info {
-  margin: 10px 0;
-  padding: 10px;
-  background: rgba(225, 187, 130, 0.1);
-  border-radius: 4px;
-  color: #e1bb82;
-}
-
-.param-section {
-  margin: 10px 0;
-  padding: 10px;
-  background: rgba(225, 187, 130, 0.05);
-  border-radius: 4px;
-  
-  h5 {
-    font-size: 14px;
-    font-weight: 600;
-  }
-}
-
-.status-panel {
-  padding: 10px;
-  margin: 10px;
-  border-radius: 5px;
-  background: rgba(225, 187, 130, 0.1);
-  color: #e1bb82;
-  
-  &.active {
-    background: rgba(225, 187, 130, 0.2);
-  }
-}
-
-:deep(.el-input-number) {
-  .el-input__inner {
-    text-align: center;
-    font-size: 12px;
-  }
-}
-</style> 
+<style scoped>
+.settings { margin: 12px 0; border-block-start: 1px solid var(--line); }
+.settings summary { padding: 10px 0; color: var(--ink); font-weight: 600; cursor: pointer; }
+.settings summary:focus-visible { outline: 2px solid var(--blue); }
+.action-row { display: flex; flex-wrap: wrap; gap: 8px; }
+fieldset { min-width: 0; margin: 12px 0; padding: 0; border: 0; }
+legend { margin-bottom: 4px; padding: 0; font-weight: 600; }
+.vector { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 105px), 1fr)); gap: 8px; }
+.vector span { display: block; margin-bottom: 3px; font-size: 12px; }
+.vector .el-input-number { width: 100%; }
+</style>

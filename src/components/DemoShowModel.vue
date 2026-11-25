@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { inject, ref, computed, onMounted } from 'vue'
 import { ShowModel } from './lib/Scene/ShowModel.js'
 
 // 模式状态
@@ -193,27 +193,21 @@ const applyPreset = async (preset: typeof colorPresets[0]) => {
 }
 
 // 初始化时从 UE 同步当前显示模式状态
+const getShareData = inject<(key: string) => unknown>('getShareData')!
 onMounted(async () => {
-  const white: any = await ShowModel.IsWhiteModelEnable()
-  isWhiteModelEnabled.value = !!white?.bEnable
-
-  const wireframe: any = await ShowModel.IsWireframeEnable()
-  isWireframeEnabled.value = !!wireframe?.bEnable
-
-  const twoSide: any = await ShowModel.IsTwoSideEnable()
-  isTwoSideEnabled.value = !!twoSide?.bEnable
-
-  const unlight: any = await ShowModel.IsUnlightEnable()
-  isUnlightEnabled.value = !!unlight?.bEnable
-
-  const generateNormal: any = await ShowModel.IsGenerateNormal()
-  isGenerateNormalEnabled.value = !!generateNormal?.bEnable
-
-  const postProcess: any = await ShowModel.IsPostProcessEnable()
-  isPostProcessEnabled.value = !!postProcess?.bEnable
-
-  const res: any = await ShowModel.GetNormalInverse()
-  normalInverse.value = res?.normalInverse ?? 0
+  if (!getShareData('viewerReady')) return
+  const [white, wireframe, twoSide, unlight, normals, postProcess, inverse] = await Promise.all([
+    ShowModel.IsWhiteModelEnable(), ShowModel.IsWireframeEnable(), ShowModel.IsTwoSideEnable(),
+    ShowModel.IsUnlightEnable(), ShowModel.IsGenerateNormal(), ShowModel.IsPostProcessEnable(),
+    ShowModel.GetNormalInverse(),
+  ])
+  isWhiteModelEnabled.value = !!white.bEnable
+  isWireframeEnabled.value = !!wireframe.bEnable
+  isTwoSideEnabled.value = !!twoSide.bEnable
+  isUnlightEnabled.value = !!unlight.bEnable
+  isGenerateNormalEnabled.value = !!normals.bEnable
+  isPostProcessEnabled.value = !!postProcess.bEnable
+  normalInverse.value = inverse.normalInverse ?? 0
 })
 </script>
 

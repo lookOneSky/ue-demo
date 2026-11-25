@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, onBeforeUnmount } from 'vue'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 import { DasInformerShape } from "./lib/Scene/DasInformerShape.js"
@@ -11,12 +12,12 @@ const showShape = ref(false)
 const eventLogs = ref<{ time: string; type: string; shapeName: string; shapeID: string }[]>([])
 
 // 启动/停止点工具
-const toggleTool = () => {
+const toggleTool = async () => {
   if (isToolActive.value) {
-    DasPointsTool.finishTool()
+    await DasPointsTool.finishTool()
     isToolActive.value = false
   } else {
-    DasPointsTool.setToCurrent()
+    await DasPointsTool.setToCurrent()
     isToolActive.value = true
   }
 }
@@ -24,7 +25,7 @@ const toggleTool = () => {
 // 注册 Shape（取当前点工具的单个点位）
 const registerShapes = async () => {
   const pos = await DasPointsTool.getPointPosition()
-  if (!pos || pos.length < 2) {
+  if (!Array.isArray(pos) || pos.length < 3) {
     console.warn('[DemoDasInformerShape] 未获取到点位')
     return
   }
@@ -43,7 +44,7 @@ const registerShapes = async () => {
   console.log('[DemoDasInformerShape] 已注册 Shape IDs:', ids)
 
   // 停止工具
-  DasPointsTool.finishTool()
+  await DasPointsTool.finishTool()
   isToolActive.value = false
 
   // 添加进入/离开监听（set 会覆盖同 listenerID，只保留一份）
@@ -75,9 +76,11 @@ const clearShapes = async () => {
 }
 
 onBeforeUnmount(() => {
-  DasPointsTool.finishTool()
   DasInformerShape.removeShapeInsideChangedListener(LISTENER_ID)
   DasInformerShape.removeShapeOutsideChangedListener(LISTENER_ID)
+})
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return DasPointsTool.finishTool()
 })
 </script>
 

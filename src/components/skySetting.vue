@@ -1,131 +1,24 @@
 <script setup lang="ts">
-import { inject, ref, watch } from 'vue'
-import { Weather } from "./lib/Scene/Weather.js";
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js";
-import { DasPointsLayer } from "./lib/Layer/DasPointsLayer.js";
-import { DasSelectTool } from "./lib/Tool/DasSelectTool.js";
-import { Scene } from "./lib/Scene/Scene.js";
-import { DasPointsTool } from "./lib/Tool/DasPointsTool.js";
+import { ref, watch } from 'vue'
+import { Weather } from './lib/Scene/Weather.js'
+import { useMessageSender } from '../utils/useMessageSender'
 
+defineProps<{ msg?: string }>()
 
-defineProps<{ msg: string }>()
+const onMessage = useMessageSender()
+const form1 = ref({ guangzhao: false, shiqu: 37.5, sunangle: 0, sunpower: 0, wuzhishu: false, wuvolumn: false, wupower: 10 })
 
-const onMessage = inject('onMessage')
-
-const form1 = ref({ guangzhao: false, shiqu: 37.5, sunangle: false, sunpower: false, wuzhishu: false, wuvolumn: false, wupower: 10 });
-
-watch(() => form1.value.guangzhao, (newValue, oldValue) => {
-    onMessage({ action: 'SetUseRealLight', data: newValue })
-});
-
-watch(() => form1.value.shiqu, async (newValue, oldValue) => {
-    //Weather.SetTimeOfDay(newValue / 100 * 2400);
-    //Weather.SetWeatherType("雪")
-    //Weather.SetWeatherType("晴")
-    //Weather.SetWeatherType("多云")
-    //Weather.SetWeatherType("雾")
-    //Weather.SetControlSnowOverlapIntensity(0)
-    //Weather.SetControlSnowIntensity(1000)
-    //Weather.SetControlFogIntensity(10)
-    // Weather.SetWeatherType("雨")
-    // Weather.SetControlRainIntensity("50000")
-    //onMessage({ action: 'SetTimeOfDay', data: newValue / 100 * 2400 })
-    //Weather.SetWeatherType("雷雨")
-    //Weather.SetControlThunderIntensity(10)
-
-    //let rootGroup = await DasGroupLayer.getRoot();
-    //let pGroupNew = await DasGroupLayer.createInstance()
-    ////rootGroup.addLayer(pGroupNew);
-    //let nLayer = await rootGroup.numLayer();
-    //console.log('nLayer', nLayer)
-    //let layers = await rootGroup.getAllLayer()
-    //await rootGroup.removeAllLayer()
-    //console.log('layers', layers)
-    if (!window.bcreatePoints) {
-        //创建单个标牌
-        // let param = {};
-        // let points = [111.00466143314220, 32.400811258087423, 1585.1196362212040];
-        // let allPoints = [];
-        // allPoints.push(points);
-        // param['points'] = allPoints;
-        // param['texturePath'] = 'S:/Doc/图标/大屏版/taihegong.png';
-        // let pointInfo = {};
-        // pointInfo['pointSize'] = [92, 274];
-        // param['pointInfo'] = pointInfo;
-
-        // let wholeParam = {};
-        // wholeParam['param'] = param;
-        // DasPointsLayer.createInstance(wholeParam);
-
-        //let params = [];
-        //for (let i = 0; i < 10; i++) {
-        //    let param = {};
-        //    let points = [111.00466143314220, 32.400811258087423, 1585.1196362212040 + i * 10];
-        //    let allPoints = [];
-        //    allPoints.push(points);
-        //    param['points'] = allPoints;
-        //    param['texturePath'] = 'S:/Doc/图标/大屏版/taihegong.png';
-        //    let pointInfo = {};
-        //    pointInfo['pointSize'] = [92, 274];
-        //    param['pointInfo'] = pointInfo;
-        //    params.push(param);
-        //}
-//
-        //let wholeParam = {};
-        //wholeParam['params'] = params;
-        //DasPointsLayer.batchCreateInstance(wholeParam);
-//
-        //window.bcreatePoints = true
-    }
-
-
-
-    //let posLLH = await Scene.screenToWorld(100, 100);
-    //console.log('posLLH', posLLH)
-    //let rootGroup = await DasGroupLayer.getRoot();
-    //let nLayer = await rootGroup.numLayer();
-    //console.log('nLayer', nLayer)
-    //DasSelectTool.setToCurrent();
-    //DasSelectTool.setSelectMode("Layer")
-//
-    //DasPointsTool.setToCurrent();
-//
-    //DasPointsTool.updateAll();
-    let param = {};
-    param['texturePath'] = 'S:/Doc/图标/大屏版/taihegong.png';
-    param['pointSize'] = [92, 274];
-    DasPointsTool.setToCurrent();
-    DasPointsTool.updateAll(param);
-    let info = await DasPointsTool.getAll();
-    DasPointsLayer.createInstance({"param":info});
-});
-
-watch(() => form1.value.sunangle, (newValue, oldValue) => {
-    //console.log('sunintensity', newValue / 100 * 360)
-    //onMessage({ action: 'SetSunAngle', data: newValue / 100 * 360 })
-    Weather.SetSunAngle(newValue / 100 * 360);
-});
-
-watch(() => form1.value.sunpower, (newValue, oldValue) => {
-    Weather.SetSunIntensity(4 + newValue);
-    //onMessage({ action: 'SetSunIntensity', data: 4 + newValue * 0.06 })
-});
-
-watch(() => form1.value.wuzhishu, (newValue, oldValue) => {
-    onMessage({ action: 'SetExpHeightFog', data: newValue })
-});
-
-watch(() => form1.value.wuvolumn, (newValue, oldValue) => {
-    onMessage({ action: 'SetVolumeFog', data: newValue })
-});
-
-// 时间格式设置
-const setTimeLabel = (value) => {
-    let rate = 60 * 24 / 2400;
-    const hour = Math.floor(rate * value * 24 / 60);
-    const minute = Math.floor(rate * value * 24 - hour * 60);
-    return hour === 24 ? '23:59' : `${hour < 10 ? '0' + hour : hour}:${minute < 10 ? '0' + minute : minute}`;
+function setTimeLabel(value: number) {
+    const minutes = Math.min(Math.floor(value / 100 * 1440), 1439)
+    return String(Math.floor(minutes / 60)).padStart(2, '0') + ':' + String(minutes % 60).padStart(2, '0')
 }
+
+watch(() => form1.value.shiqu, value => Weather.SetTimeOfDay(setTimeLabel(value)))
+watch(() => form1.value.sunangle, value => Weather.SetSunAngle(value * 3.6))
+watch(() => form1.value.sunpower, value => Weather.SetSunIntensity(4 + value * 0.06))
+watch(() => form1.value.guangzhao, value => onMessage({ action: 'SetUseRealLight', data: value }))
+watch(() => form1.value.wuzhishu, value => onMessage({ action: 'SetExpHeightFog', data: value }))
+watch(() => form1.value.wuvolumn, value => onMessage({ action: 'SetVolumeFog', data: value }))
 </script>
 
 <template>
@@ -142,16 +35,16 @@ const setTimeLabel = (value) => {
             </el-form-item> -->
             <el-form-item label="时间设置" class="sewen">
                 <el-slider v-model="form1.shiqu" style="margin-left: -15px; margin-top: -20px;"
-                    :format-tooltip="value => setTimeLabel(value)" :marks="{ 0: '0', 100: '24' }"></el-slider>
+                    :format-tooltip="setTimeLabel" :marks="{ 0: '0', 100: '24' }"></el-slider>
             </el-form-item>
             <el-form-item label="太阳角度" class="sun_angle">
                 <el-slider v-model="form1.sunangle" style="margin-left: -15px; margin-top: -20px;"
-                    :format-tooltip="value => parseFloat((value * 3.6).toFixed(1))"
+                    :format-tooltip="(value: number) => parseFloat((value * 3.6).toFixed(1))"
                     :marks="{ 0: '0', 100: '360' }"></el-slider>
             </el-form-item>
             <el-form-item label="太阳强度" class="sun_power">
                 <el-slider v-model="form1.sunpower" style="margin-left: -15px; margin-top: -20px;"
-                    :format-tooltip="value => parseFloat((4 + value * 0.06).toFixed(1))"
+                    :format-tooltip="(value: number) => parseFloat((4 + value * 0.06).toFixed(1))"
                     :marks="{ 0: '4', 100: '10' }"></el-slider>
             </el-form-item>
             <!-- <el-form-item label="指数高度雾">

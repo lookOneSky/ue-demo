@@ -3,7 +3,6 @@ import { ref, watch } from 'vue'
 import { DasLightPointLayer } from "./lib/Layer/DasLightPointLayer.js"
 import { DasLightTorchLayer } from "./lib/Layer/DasLightTorchLayer.js"
 import { DasGizmosOperateTool } from "./lib/Tool/DasGizmosOperateTool.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 import { Weather } from "./lib/Scene/Weather.js"
 import { useLightDemoShowModel } from "../utils/useLightDemoShowModel"
 
@@ -49,7 +48,7 @@ const buildLightParam = (transform?: any) => {
 }
 
 const registerCreatedLayer = (layer: any) => {
-  createdLayers.value.push(layer)
+  if (layer) createdLayers.value.push(layer)
 }
 
 const syncPanelFromLayer = async (layer: any) => {
@@ -118,10 +117,11 @@ watch(timeValue, (val) => {
 // 清空所有
 const clearAll = async () => {
   await DasGizmosOperateTool.setOperateType(0)
-  const pRoot = await DasGroupLayer.getRoot()
-  await pRoot.removeAllLayer()
-  activeLayer.value = null
-  createdLayers.value = []
+  for (const layer of [...createdLayers.value].reverse()) {
+    await layer.removeInstance()
+    createdLayers.value = createdLayers.value.filter(item => item !== layer)
+    if (activeLayer.value === layer) activeLayer.value = null
+  }
 }
 </script>
 
@@ -207,7 +207,7 @@ const clearAll = async () => {
     </div>
 
     <div class="control-group">
-      <el-button type="danger" size="small" @click="clearAll">清空所有</el-button>
+      <el-button type="danger" size="small" @click="clearAll">清空本示例</el-button>
     </div>
   </div>
 </template>

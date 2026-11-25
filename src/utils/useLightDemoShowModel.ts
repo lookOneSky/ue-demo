@@ -1,44 +1,49 @@
-import { onBeforeUnmount, onMounted } from 'vue'
+import { inject, onBeforeUnmount, onMounted } from 'vue'
 import { ShowModel } from '../components/lib/Scene/ShowModel.js'
 import { Weather } from '../components/lib/Scene/Weather.js'
 
-/**
- * 灯光 Demo 进入时关闭 Unlight 并开启平滑法线，退出时恢复进入前的状态并将时间重置为中午 12:00
- */
+// 两个灯光面板共用 UE 的显示模式。先还原上一个面板，再读取新面板的初始状态。
+let pending = Promise.resolve()
+function enqueue(operation: () => Promise<void>) {
+  pending = pending.then(operation).catch(error => console.error('设置灯光 Demo 显示状态失败', error))
+}
+
 export function useLightDemoShowModel() {
-  let savedUnlight: boolean | null = null
-  let savedGenerateNormal: boolean | null = null
-  let hasApplied = false
-  let isDisposed = false
+  const get = inject<(key: string) => unknown>('getShareData')!
+  let session: unknown
+  let restoreUnlight = false
+  let restoreNormals = false
+  let disposed = false
+  const sameSession = () => Boolean(session && session === get('viewerSession'))
 
-  onMounted(async () => {
-    try {
-      const unlightRes: any = await ShowModel.IsUnlightEnable()
-      if (isDisposed) return
-      savedUnlight = !!unlightRes?.bEnable
-
-      const generateNormalRes: any = await ShowModel.IsGenerateNormal()
-      if (isDisposed) return
-      savedGenerateNormal = !!generateNormalRes?.bEnable
-
-      hasApplied = true
-      await ShowModel.SetUnlightEnable(false)
-      await ShowModel.SetGenerateNormal(true)
-    } catch (error) {
-      console.error('设置灯光 Demo 显示模式状态失败:', error)
-    }
+  onMounted(() => {
+    session = get('viewerSession')
+    if (!session) return
+    enqueue(async () => {
+      if (disposed || !sameSession()) return
+      const [unlight, normals] = await Promise.all([ShowModel.IsUnlightEnable(), ShowModel.IsGenerateNormal()])
+      if (disposed || !sameSession()) return
+      if (unlight.bEnable === true) {
+        restoreUnlight = true
+        await ShowModel.SetUnlightEnable(false)
+      }
+      if (!disposed && sameSession() && normals.bEnable === false) {
+        restoreNormals = true
+        await ShowModel.SetGenerateNormal(true)
+      }
+    })
   })
 
   onBeforeUnmount(() => {
-    isDisposed = true
-    Weather.SetTimeOfDay('12:00')
-    if (!hasApplied) return
-
-    if (savedUnlight !== null) {
-      ShowModel.SetUnlightEnable(savedUnlight)
-    }
-    if (savedGenerateNormal !== null) {
-      ShowModel.SetGenerateNormal(savedGenerateNormal)
-    }
+    disposed = true
+    if (!sameSession()) return
+    enqueue(async () => {
+      if (!sameSession()) return
+      await Promise.all([
+        Weather.SetTimeOfDay('12:00'),
+        restoreUnlight && ShowModel.SetUnlightEnable(true),
+        restoreNormals && ShowModel.SetGenerateNormal(false),
+      ])
+    })
   })
 }

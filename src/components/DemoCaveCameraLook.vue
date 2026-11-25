@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 import { DasUtilsCalCircleLook } from "./lib/Scene/DasUtilsCalCircleLook.js"
 import { Camera } from './lib/Scene/Camera.js'
 
 // 工具状态
-const isToolActive = ref(false)
+const { isToolActive, changingTool, startTool, stopTool } = usePointPicking()
 
 // 中心点（洞窟中心默认值）
 const circleLLH = ref({
@@ -23,18 +24,6 @@ const duration = ref(3)
 // 计算结果
 const lookResult = ref<any>(null)
 
-// 启动点工具
-const startTool = async () => {
-  await DasPointsTool.setToCurrent()
-  isToolActive.value = true
-}
-
-// 停止点工具
-const stopTool = async () => {
-  await DasPointsTool.finishTool()
-  isToolActive.value = false
-}
-
 // 取点工具第一点，计算位姿后飞入
 const flyToFirstPoint = async () => {
   const info = await DasPointsTool.getAll()
@@ -46,7 +35,7 @@ const flyToFirstPoint = async () => {
 
   const arrCircle = [circleLLH.value.longitude, circleLLH.value.latitude, circleLLH.value.height]
   const objLook = await DasUtilsCalCircleLook.calcLookTransform(arrTarget, arrCircle, distance.value * 100)
-  if (!objLook.locationLLH) {
+  if (!objLook.locationLLH || !objLook.rotationLLH) {
     console.warn('位姿计算失败')
     return
   }
@@ -65,7 +54,7 @@ const flyToFirstPoint = async () => {
     <div class="control-group">
       <el-button
         :type="isToolActive ? 'danger' : 'primary'"
-        @click="isToolActive ? stopTool() : startTool()"
+        :loading="changingTool" @click="isToolActive ? stopTool() : startTool()"
         style="margin: 10px;">
         {{ isToolActive ? '停止点工具' : '启动点工具' }}
       </el-button>

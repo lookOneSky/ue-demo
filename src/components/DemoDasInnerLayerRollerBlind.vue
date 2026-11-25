@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { computed, ref } from 'vue'
 import { DasToolRollerBlind } from './lib/Tool/DasToolRollerBlind.js'
 // @ts-ignore
 import { DasGroupInnerLayer } from './lib/Layer/DasGroupInnerLayer.js'
@@ -200,9 +201,9 @@ const getMovePaused = async () => {
   }
 }
 
-onBeforeUnmount(() => {
+onViewerSessionLeave(async () => {
   if (isToolActive.value) {
-    tool.finishTool()
+    await tool.finishTool()
   }
 })
 </script>

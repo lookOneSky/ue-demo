@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { computed, ref } from 'vue'
 import { DasToolRollerBlind } from './lib/Tool/DasToolRollerBlind.js'
 import { DasModelTilesetLayer } from './lib/Layer/Tileset/DasModelTilesetLayer.js'
 
@@ -214,15 +215,15 @@ const getMovePaused = async () => {
   }
 }
 
-onBeforeUnmount(() => {
+onViewerSessionLeave(async () => {
   if (isToolActive.value) {
-    tool.finishTool()
+    await tool.finishTool()
   }
   if (leftLayer.value) {
-    leftLayer.value.removeInstance()
+    await leftLayer.value.removeInstance()
   }
   if (rightLayer.value) {
-    rightLayer.value.removeInstance()
+    await rightLayer.value.removeInstance()
   }
 })
 </script>

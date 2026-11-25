@@ -90,7 +90,7 @@ class DasCameraRoamingCircleLayer extends DasLayerBase {
 
     /**
      * 获取原点经纬度高度
-     * @returns {Promise<Object>} 包含经纬度高度的对象
+     * @returns {Promise<{longitude: number, latitude: number, height: number}>} 包含经纬度高度的对象
      */
     async getOriginLLH() {
         let originLLH = {};
@@ -116,6 +116,7 @@ class DasCameraRoamingCircleLayer extends DasLayerBase {
      * 创建相机环绕飞行层
      * @param {Object} param - 创建参数
      * @param {Object} [param.param] - 初始配置参数
+     * @param {boolean} [param.param.IsPermanentLayer] - 是否为常驻图层
      * @param {number} [param.param.rotationRadius] - 环绕半径（米）
      * @param {number} [param.param.cameraPitch] - 相机俯仰角（度）
      * @param {number} [param.param.flightTime] - 环绕一圈所需时间（秒）

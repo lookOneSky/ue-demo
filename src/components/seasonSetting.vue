@@ -1,9 +1,10 @@
 <script setup lang="ts">
-	import { inject, ref, watch } from "vue"
+import { useMessageSender } from "../utils/useMessageSender"
+	import { ref } from "vue"
 
-	defineProps<{ msg: string }>()
+	defineProps<{ msg?: string }>()
 
-	const onMessage = inject("onMessage")
+	const onMessage = useMessageSender()
 
 	const form1 = ref<any>({ chunxia: "chunxia", qiuji: '', dongji: '' })
 

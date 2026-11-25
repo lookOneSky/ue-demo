@@ -12,8 +12,11 @@ const singleResult = ref<{ height: number; success: boolean } | null>(null)
 const handleGetHeight = async () => {
   singleLoading.value = true
   singleResult.value = null
-  singleResult.value = await Scene.getHeightAtLongLat(longitude.value, latitude.value)
-  singleLoading.value = false
+  try {
+    singleResult.value = await Scene.getHeightAtLongLat(longitude.value, latitude.value)
+  } finally {
+    singleLoading.value = false
+  }
 }
 
 // 多点查询
@@ -106,7 +109,14 @@ const handleBatchQuery = async () => {
     if (unsubscribe) { unsubscribe(); unsubscribe = null }
   })
 
-  await Scene.getPointsHeightAsync(points.value.map(p => ({ longitude: p.longitude, latitude: p.latitude })))
+  try {
+    await Scene.getPointsHeightAsync(points.value.map(p => ({ longitude: p.longitude, latitude: p.latitude })))
+  } catch (error) {
+    unsubscribe?.()
+    unsubscribe = null
+    batchLoading.value = false
+    throw error
+  }
 }
 
 const createPointsLayer = async () => {
@@ -114,8 +124,11 @@ const createPointsLayer = async () => {
   const pts = points.value
     .filter(p => p.success === true && p.height !== null)
     .map(p => [p.longitude, p.latitude, p.height as number])
-  currentLayer.value = await DasPointsLayer.createInstance({ param: { points: pts } })
-  layerLoading.value = false
+  try {
+    currentLayer.value = await DasPointsLayer.createInstance({ param: { points: pts } })
+  } finally {
+    layerLoading.value = false
+  }
 }
 
 onUnmounted(() => {
@@ -167,7 +180,7 @@ onUnmounted(() => {
         </tbody>
       </table>
       <el-button class="btn" :loading="batchLoading" @click="handleBatchQuery">批量查询</el-button>
-      <el-button v-if="batchDone" class="btn" :loading="layerLoading" @click="createPointsLayer">创建图层</el-button>
+      <el-button v-if="batchDone" class="btn" :disabled="!points.some(point => point.success)" :loading="layerLoading" @click="createPointsLayer">创建图层</el-button>
       <div v-if="batchDone" class="result">
         <span v-if="currentLayer" class="success">图层已创建：{{ currentLayer.id }}</span>
         <span v-else class="success">查询完成</span>

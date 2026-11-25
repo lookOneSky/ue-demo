@@ -1,4 +1,4 @@
-import { ExcuteUEFun } from "../ExcuteUEFun.js";
+import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
 import { ToolBase } from "./ToolBase.js";
 
 /**
@@ -10,26 +10,26 @@ class DasSelectToolClass extends ToolBase {
 
     /**
      * 设置DasSelectTool为当前活动工具
-     * @param {function} callback - Optional callback function after operation
+     * @param {function} [callback] - Optional callback function after operation
      */
-    async setToCurrent() {
+    async setToCurrent(callback) {
         let param = {};
-        await ExcuteUEFun.excuteUEFunction(this.className, "setToCurrent", param);
+        await ExcuteUEFun.excuteUEFunction(this.className, "setToCurrent", param, callback);
     }
 
     /**
      * 清除当前选择
-     * @param {function} callback - Optional callback function after operation
+     * @param {function} [callback] - Optional callback function after operation
      */
     async clearSelect(callback) {
         let param = {};
-        await ExcuteUEFun.excuteUEFunction(this.className, "clearSelect", param);
+        await ExcuteUEFun.excuteUEFunction(this.className, "clearSelect", param, callback);
     }
 
     /**
      * 设置选择模式
      * @param {string} mode - The selection mode: "Component", "Actor", or "Layer"
-     * @param {function} callback - Optional callback function after operation
+     * @param {function} [callback] - Optional callback function after operation
      */
     async setSelectMode(mode) {
         let param = {
@@ -40,7 +40,7 @@ class DasSelectToolClass extends ToolBase {
 
     /**
      * 获取当前选择模式
-     * @param {function} callback - Callback function receiving the selection mode
+     * @param {function} [callback] - Callback function receiving the selection mode
      */
     async getSelectMode() {
         let selectMode = ""
@@ -54,7 +54,7 @@ class DasSelectToolClass extends ToolBase {
     /**
      * 设置选择的视觉状态
      * @param {string} state - Visual state: "None", "Outline", "Highlight", or "OutlineAndHighlight"
-     * @param {function} callback - Optional callback function after operation
+     * @param {function} [callback] - Optional callback function after operation
      */
     async setSelectShowState(state) {
         let param = {
@@ -65,7 +65,7 @@ class DasSelectToolClass extends ToolBase {
 
     /**
      * 获取当前选择的视觉状态
-     * @param {function} callback - Callback function receiving the visual state
+     * @param {function} [callback] - Callback function receiving the visual state
      */
     async getSelectShowState() {
         let strShowState = "";
@@ -111,7 +111,7 @@ class DasSelectToolClass extends ToolBase {
 
     addCallBack(fun){
         window.viewer.addResponseEventListener(this.className, (json) => {
-            let obj = JSON.parse(json);
+            let obj = parseUEMessage(json);
 
             if(obj.class == this.className)
             {

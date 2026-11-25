@@ -1,309 +1,147 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ScreenPosInformer } from './lib/Scene/ScreenPosInformer.js'
-import type { ScreenPosition, PointInfo } from './lib/Scene/ScreenPosInformer'
-import { DasPointsLayer } from './lib/Layer/DasPointsLayer.js';
 
-// 定义类型
 interface RegisteredPoint {
-  id: string;
-  position: number[];
-  screenPos: number[];
-  isVisible: boolean;
+  id: string
+  position: number[]
+  screenPos: number[]
+  isVisible: boolean
 }
 
-// 状态管理
-const isActive = ref(false)
+const getShareData = inject<(key: string) => unknown>('getShareData')!
+const session = computed(() => getShareData('viewerSession'))
 const registeredPoints = ref<RegisteredPoint[]>([])
-const popupVisible = ref(false)
-const popupStyle = ref({
-  left: '0px',
-  top: '0px',
-  position: 'fixed' as const,
-  zIndex: 9999
-})
-const popupContent = ref({
-  id: '',
-  position: [0, 0, 0],
-  screenPos: [0, 0]
-})
+const unsubscribe = new Map<string, () => void>()
+const isActive = ref(false)
+const clearing = ref(false)
+const selectedId = ref('')
+const popupContent = computed(() => registeredPoints.value.find(point => point.id === selectedId.value))
+const coordinates = ref([0, 0])
+const pointParams = ref({ longitude: 111.0222729132209, latitude: 32.426901590203755, height: 790.6391397648027 })
+const animationParams = ref({ moveDelay: 300, smoothDuration: 500, smoothEnabled: true, delayEnabled: true })
+const popupStyle = computed(() => ({
+  left: coordinates.value[0] + 'px',
+  top: coordinates.value[1] + 'px',
+  transitionDuration: (animationParams.value.smoothEnabled ? animationParams.value.smoothDuration : 0) + 'ms',
+}))
+let generation = 0
+let timeout: ReturnType<typeof setTimeout> | undefined
+let observer: ResizeObserver | undefined
 
-// 点位参数
-const pointParams = ref({
-  longitude: 111.0222729132209,
-  latitude: 32.426901590203755,
-  height: 790.6391397648027
-})
-
-// 动画参数
-const animationParams = ref({
-  moveDelay: 300,       // 延迟移动时间（毫秒）
-  smoothDuration: 500,  // 平滑移动持续时间（毫秒）
-  smoothEnabled: true,  // 是否启用平滑移动
-  delayEnabled: true    // 是否启用延迟移动
-})
-
-// 记录上一次位置信息
-let lastScreenPos = [0, 0]
-let moveTimeout: ReturnType<typeof setTimeout> | null = null
-let animationFrame: number | null = null
-
-// 启动演示
-const startDemo = async () => {
-  isActive.value = true
-
-  function trackVideoFrame(video, callback) {
-    let lastFrameTime = 0;  // 上一次的视频 currentTime，表示上一次显示的帧时间
-
-    function loop() {
-      // 确保 video 已经开始播放并且有内容可读
-      if (video.readyState >= 2 && video.currentTime !== lastFrameTime) {
-        lastFrameTime = video.currentTime;  // 记录这帧时间
-        callback(video);  // 回调你自己的处理逻辑（如更新 UI）
-      }
-
-      // 等下一帧浏览器绘制时继续循环
-      requestAnimationFrame(loop);
-    }
-
-    // 启动帧检测循环
-    requestAnimationFrame(loop);
-  }
-
-  trackVideoFrame(document.querySelector('#streamingVideo'), (video) => {
-    console.log('显示了新的视频帧：', video.currentTime.toFixed(3));
-  });
-
-
+function updatePopupPosition() {
+  const point = popupContent.value
+  const video = document.querySelector<HTMLVideoElement>('#streamingVideo')
+  const player = document.querySelector('#player')
+  if (!point || !video?.videoWidth || !video.videoHeight || !player) return
+  const rect = video.getBoundingClientRect()
+  const host = player.getBoundingClientRect()
+  const scale = Math.min(rect.width / video.videoWidth, rect.height / video.videoHeight)
+  coordinates.value = [
+    rect.left - host.left + (rect.width - video.videoWidth * scale) / 2 + point.screenPos[0] * scale,
+    rect.top - host.top + (rect.height - video.videoHeight * scale) / 2 + point.screenPos[1] * scale,
+  ]
 }
 
-// 结束演示
-const stopDemo = async () => {
+function closePopup() {
+  clearTimeout(timeout)
+  timeout = undefined
+  selectedId.value = ''
+}
+
+function showPointPopup(point: RegisteredPoint) {
+  closePopup()
+  selectedId.value = point.id
+  updatePopupPosition()
+}
+
+function updatePoint(id: string, screenPos: number[], visible?: boolean) {
+  const point = registeredPoints.value.find(entry => entry.id === id)
+  const video = document.querySelector<HTMLVideoElement>('#streamingVideo')
+  if (!point || !video) return
+  point.screenPos = screenPos
+  point.isVisible = visible !== false && video.videoWidth > 0 && video.videoHeight > 0 &&
+    screenPos[0] >= 0 && screenPos[0] <= video.videoWidth && screenPos[1] >= 0 && screenPos[1] <= video.videoHeight
+  if (id !== selectedId.value) return
+  if (!point.isVisible) return closePopup()
+  if (!animationParams.value.delayEnabled) return updatePopupPosition()
+  if (timeout === undefined) {
+    timeout = setTimeout(() => {
+      timeout = undefined
+      updatePopupPosition()
+    }, animationParams.value.moveDelay)
+  }
+}
+
+async function registerPoint() {
+  const startingSession = session.value
+  if (!isActive.value || !startingSession || clearing.value) return
+  const version = generation
+  const { longitude, latitude, height } = pointParams.value
+  const id = await ScreenPosInformer.RegisterPoint(longitude, latitude, height)
+  if (!id || startingSession !== session.value) return
+  if (version !== generation) {
+    await ScreenPosInformer.RemovePoint(id)
+    return
+  }
+  registeredPoints.value.push({ id, position: [longitude, latitude, height], screenPos: [0, 0], isVisible: false })
+  unsubscribe.set(id, ScreenPosInformer.addScreenPositionsChangedListener(id, point => {
+    updatePoint(id, point.screenPos, point.isVisible)
+  }))
+}
+
+async function removePoint(id: string) {
+  if (session.value && !await ScreenPosInformer.RemovePoint(id)) return
+  unsubscribe.get(id)?.()
+  unsubscribe.delete(id)
+  registeredPoints.value = registeredPoints.value.filter(point => point.id !== id)
+  if (selectedId.value === id) closePopup()
+}
+
+async function clearAllPoints() {
+  generation++
+  closePopup()
+  clearing.value = true
+  try {
+    await Promise.all(registeredPoints.value.map(point => removePoint(point.id)))
+  } finally {
+    clearing.value = false
+  }
+}
+
+function startDemo() {
+  if (session.value) isActive.value = true
+}
+
+async function stopDemo() {
   await clearAllPoints()
+  if (!registeredPoints.value.length) isActive.value = false
+}
+
+function releaseListeners() {
+  for (const stop of unsubscribe.values()) stop()
+  unsubscribe.clear()
+}
+
+watch(session, () => {
+  generation++
+  releaseListeners()
+  closePopup()
+  registeredPoints.value = []
   isActive.value = false
-  popupVisible.value = false
+}, { flush: 'sync' })
 
-  // 清除可能存在的定时器和动画帧
-  if (moveTimeout) {
-    clearTimeout(moveTimeout)
-    moveTimeout = null
+onMounted(() => {
+  const player = document.querySelector('#player')
+  if (player) {
+    observer = new ResizeObserver(updatePopupPosition)
+    observer.observe(player)
   }
-
-  if (animationFrame) {
-    cancelAnimationFrame(animationFrame)
-    animationFrame = null
-  }
-}
-
-// 注册一个点位
-const registerPoint = async () => {
-  try {
-    const pointId = await ScreenPosInformer.RegisterPoint(
-      pointParams.value.longitude,
-      pointParams.value.latitude,
-      pointParams.value.height
-    )
-
-    if (pointId) {
-      const newPoint: RegisteredPoint = {
-        id: pointId,
-        position: [
-          pointParams.value.longitude,
-          pointParams.value.latitude,
-          pointParams.value.height
-        ],
-        screenPos: [0, 0],
-        isVisible: false
-      }
-
-      registeredPoints.value.push(newPoint)
-
-      const param: Record<string, any> = {};
-      let points = [pointParams.value.longitude, pointParams.value.latitude, pointParams.value.height];
-      let allPoints = [];
-      allPoints.push(points);
-      param['points'] = allPoints;
-      let pointInfo = {};
-      param['pointSize'] = [20, 20];
-      const wholeParam: Record<string, any> = {};
-      wholeParam['param'] = param;
-      //DasPointsLayer.createInstance(wholeParam);
-
-      // 为这个点位添加屏幕位置变化监听
-      ScreenPosInformer.addScreenPositionsChangedListener(
-        pointId,
-        (pointInfo: PointInfo) => {
-          // 更新点的屏幕位置信息
-          const index = registeredPoints.value.findIndex(p => p.id === pointInfo.pointId)
-          if (index !== -1) {
-            registeredPoints.value[index].screenPos = pointInfo.screenPos;
-            registeredPoints.value[index].isVisible = pointInfo.isVisible
-
-            // 如果这是当前选中的点，更新弹窗位置
-            if (popupContent.value.id === pointInfo.pointId && pointInfo.isVisible) {
-              updatePopupPosition(pointInfo.screenPos)
-            }
-          }
-        }
-      )
-
-      console.log('点位注册成功:', pointId)
-    }
-  } catch (error) {
-    console.error('点位注册失败:', error)
-  }
-}
-
-// 移除单个点位
-const removePoint = async (pointId: string) => {
-  try {
-    const success = await ScreenPosInformer.RemovePoint(pointId)
-    if (success) {
-      registeredPoints.value = registeredPoints.value.filter(p => p.id !== pointId)
-
-      // 如果移除的是当前弹窗显示的点，关闭弹窗
-      if (popupContent.value.id === pointId) {
-        popupVisible.value = false
-      }
-
-      console.log('点位移除成功:', pointId)
-    }
-  } catch (error) {
-    console.error('点位移除失败:', error)
-  }
-}
-
-// 清除所有点位
-const clearAllPoints = async () => {
-  try {
-    const success = await ScreenPosInformer.ClearAllPoints()
-    if (success) {
-      registeredPoints.value = []
-      popupVisible.value = false
-      console.log('所有点位已清除')
-    }
-  } catch (error) {
-    console.error('清除点位失败:', error)
-  }
-}
-
-// 显示点位弹窗
-const showPointPopup = (point: RegisteredPoint) => {
-  popupContent.value = {
-    id: point.id,
-    position: point.position,
-    screenPos: [...point.screenPos]
-  }
-
-  updatePopupPosition(point.screenPos)
-  popupVisible.value = true
-}
-
-// 更新弹窗位置
-const updatePopupPosition = (screenPos: number[]) => {
-  if (screenPos && screenPos.length >= 2) {
-    // 记录新的屏幕位置
-    const newScreenPos = [...screenPos]
-
-    // 如果取消所有动画，则立即更新
-    if (!animationParams.value.smoothEnabled && !animationParams.value.delayEnabled) {
-      applyPopupPosition(newScreenPos)
-      return
-    }
-
-    // 清除可能存在的定时器
-    if (moveTimeout) {
-      clearTimeout(moveTimeout)
-      moveTimeout = null
-    }
-
-    // 清除可能存在的动画帧
-    if (animationFrame) {
-      cancelAnimationFrame(animationFrame)
-      animationFrame = null
-    }
-
-    // 如果启用了延迟移动
-    if (animationParams.value.delayEnabled) {
-      moveTimeout = setTimeout(() => {
-        // 如果启用了平滑移动
-        if (animationParams.value.smoothEnabled) {
-          smoothMovePopup(lastScreenPos, newScreenPos, animationParams.value.smoothDuration)
-        } else {
-          applyPopupPosition(newScreenPos)
-        }
-      }, animationParams.value.moveDelay)
-    }
-    // 如果只启用了平滑移动，不延迟
-    else if (animationParams.value.smoothEnabled) {
-      smoothMovePopup(lastScreenPos, newScreenPos, animationParams.value.smoothDuration)
-    }
-  }
-}
-
-// 平滑移动弹窗
-const smoothMovePopup = (startPos: number[], endPos: number[], duration: number) => {
-  const startTime = Date.now()
-  const startX = startPos[0]
-  const startY = startPos[1]
-  const deltaX = endPos[0] - startX
-  const deltaY = endPos[1] - startY
-
-  // 动画函数
-  const animate = () => {
-    const currentTime = Date.now()
-    const elapsed = currentTime - startTime
-
-    if (elapsed < duration) {
-      // 计算当前位置（使用缓动函数使动画更加平滑）
-      const progress = easeOutCubic(elapsed / duration)
-      const currentX = startX + deltaX * progress
-      const currentY = startY + deltaY * progress
-
-      // 应用新位置
-      applyPopupPosition([currentX, currentY])
-
-      // 继续动画
-      animationFrame = requestAnimationFrame(animate)
-    } else {
-      // 动画结束，应用最终位置
-      applyPopupPosition(endPos)
-      animationFrame = null
-    }
-  }
-
-  // 开始动画
-  animate()
-}
-
-// 缓动函数 - 三次方缓出
-const easeOutCubic = (t: number): number => {
-  return 1 - Math.pow(1 - t, 3)
-}
-
-// 应用弹窗位置（实际更新DOM）
-const applyPopupPosition = (screenPos: number[]) => {
-  popupStyle.value = {
-    left: `${screenPos[0]}px`,
-    top: `${screenPos[1]}px`,
-    position: 'fixed' as const,
-    zIndex: 9999
-  }
-  popupContent.value.screenPos[0] = screenPos[0]
-  popupContent.value.screenPos[1] = screenPos[1]
-
-  // 更新上一次位置
-  lastScreenPos = [...screenPos]
-}
-
-// 关闭弹窗
-const closePopup = () => {
-  popupVisible.value = false
-}
-
-// 组件卸载时清理资源
-onUnmounted(async () => {
-  await clearAllPoints()
+})
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  releaseListeners()
+  void clearAllPoints().catch(console.error)
 })
 </script>
 
@@ -314,12 +152,12 @@ onUnmounted(async () => {
 
     <!-- 控制按钮 -->
     <div class="control-group">
-      <el-button :type="isActive ? 'danger' : 'primary'" @click="isActive ? stopDemo() : startDemo()"
+      <el-button :type="isActive ? 'danger' : 'primary'" :disabled="!session || clearing" @click="isActive ? stopDemo() : startDemo()"
         style="margin: 10px;">
         {{ isActive ? '结束演示' : '开始演示' }}
       </el-button>
 
-      <el-button type="warning" @click="clearAllPoints" :disabled="!isActive || registeredPoints.length === 0"
+      <el-button type="warning" @click="clearAllPoints" :disabled="clearing || !isActive || !registeredPoints.length"
         style="margin: 10px;">
         清除所有点位
       </el-button>
@@ -339,7 +177,7 @@ onUnmounted(async () => {
         <el-input-number v-model="pointParams.height" :step="1" style="width: 120px;"></el-input-number>
       </el-form-item>
 
-      <el-button type="success" @click="registerPoint" style="margin: 15px;">
+      <el-button type="success" :disabled="clearing" @click="registerPoint" style="margin: 15px;">
         注册点位
       </el-button>
     </div>
@@ -394,9 +232,8 @@ onUnmounted(async () => {
     </div>
   </div>
 
-  <!-- 点位弹窗 - 移到根级别以便在整个视口中显示 -->
-  <teleport to="body">
-    <div v-if="popupVisible" class="point-popup" :style="popupStyle">
+  <teleport v-if="popupContent" to="#player">
+    <div class="point-popup" :style="popupStyle">
       <div class="popup-header">
         <span>点位信息</span>
         <span class="popup-close" @click="closePopup">×</span>
@@ -478,6 +315,9 @@ onUnmounted(async () => {
 }
 
 .point-popup {
+  position: absolute;
+  z-index: 3;
+  transition-property: left, top;
   width: 200px;
   border-radius: 5px;
   background: rgba(33, 32, 29, 0.9);

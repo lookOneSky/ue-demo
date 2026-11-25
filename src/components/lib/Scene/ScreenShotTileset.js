@@ -1,4 +1,4 @@
-import { ExcuteUEFun } from "../ExcuteUEFun.js";
+import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
 
 /**
  * JavaScript wrapper for the UWebScreenShotTileset UE component
@@ -8,7 +8,7 @@ import { ExcuteUEFun } from "../ExcuteUEFun.js";
 class ScreenShotTileset {
     static className = "ScreenShotTileset";
     static _messageCallbacks = new Map();
-    static _bListenerCreated = false;
+    static _listeningViewer = null;
 
     /**
      * 触发3DTiles分块高清出图
@@ -89,10 +89,10 @@ class ScreenShotTileset {
         }
         ScreenShotTileset._messageCallbacks.get(message).add(callback);
 
-        if (!ScreenShotTileset._bListenerCreated) {
-            ScreenShotTileset._bListenerCreated = true;
+        if (ScreenShotTileset._listeningViewer !== window.viewer) {
+            ScreenShotTileset._listeningViewer = window.viewer;
             window.viewer.addResponseEventListener(ScreenShotTileset.className, (json) => {
-                const obj = JSON.parse(json);
+                const obj = parseUEMessage(json);
                 if (obj.class !== ScreenShotTileset.className) return;
                 if (obj.function !== "emitMessage") return;
                 if (obj.messageName === "message") {

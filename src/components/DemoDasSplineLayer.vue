@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasSpline } from "./lib/Layer/DasSplineLayer.js"
 import { DasPointEditTool } from "./lib/Tool/DasPointEditTool.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 
 // 当前样条线图层
 const currentSplineLayer = ref<any>(null)
+const createdLayers = new Set<DasSpline>()
+
 const isEditMode = ref(false)
 
 // 预定义的样条线配置
@@ -37,6 +39,8 @@ const createSplineLayer = async () => {
     }
     
     const splineLayer = await DasSpline.createInstance(params)
+    if (!splineLayer) return
+    createdLayers.add(splineLayer)
     currentSplineLayer.value = splineLayer
     
     console.log('样条线图层创建成功:', splineLayer)
@@ -156,9 +160,10 @@ const clearAll = async () => {
       await stopEditTool()
     }
     
-    // 删除所有图层
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
+    for (const layer of [...createdLayers].reverse()) {
+      await layer.removeInstance()
+      createdLayers.delete(layer)
+    }
     
     // 重置状态
     currentSplineLayer.value = null
@@ -169,6 +174,9 @@ const clearAll = async () => {
     console.error('清空失败:', error)
   }
 }
+onViewerSessionLeave(() => {
+  if (isEditMode.value) return DasPointEditTool.finishTool()
+})
 </script>
 
 <template>
@@ -270,7 +278,7 @@ const clearAll = async () => {
         type="danger" 
         @click="clearAll"
         style="margin: 10px;">
-        清空所有
+        清空本示例
       </el-button>
     </div>
 

@@ -44,6 +44,7 @@ class DasCustomLayer extends DasLayerBase {
      * @param {Object} param - 创建参数
      * @param {Object} [param.param] - 图层的初始配置
      * @param {string} [param.param.assetName] - 初始资产名
+     * @param {{translation: number[], rotation: number[], scale3D: number[]}} [param.param.transform] - 图层的世界变换
      * @returns {Promise<DasCustomLayer>} - 新的图层实例
      */
     static async createInstance(param) {

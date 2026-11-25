@@ -6,7 +6,7 @@ import WeatherSetting from './weatherSetting.vue'
 import SeasonSetting from './seasonSetting.vue'
 import Camera from './camera.vue'
 import Effect from './effect.vue'
-defineProps<{ msg: string }>()
+defineProps<{ msg?: string }>()
 
 const showSysSetting = ref(false)
 const toggleSysSetting = () => {

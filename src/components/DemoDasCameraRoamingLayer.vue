@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { DasCameraRoamingLayer } from "./lib/Layer/DasCameraRoamingLayer.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 
 // 图层状态
 const layerVisible = ref(true)
-const currentLayerId = ref(null)
+const currentLayer = ref<DasCameraRoamingLayer | null>(null)
 const isFlying = ref(false)
 
 // 相机点位数据
@@ -23,7 +22,8 @@ const createCameraRoamingLayer = async () => {
         positions: []
       }
     })
-    currentLayerId.value = result ? result : null
+    currentLayer.value = result
+    layerVisible.value = true
     console.log('已创建相机漫游图层:', result)
     await loadPositions()
   } catch (error) {
@@ -31,26 +31,12 @@ const createCameraRoamingLayer = async () => {
   }
 }
 
-// 检查图层是否已创建
-const checkLayerExists = () => {
-  if (!currentLayerId.value) {
-    console.warn('请先创建相机漫游图层')
-    return false
-  }
-  return true
-}
-
-// 获取图层实例
-const getLayerInstance = () => {
-  return currentLayerId.value
-}
-
 // 添加当前相机位置
 const addCurrentCameraPosition = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.addCurrentCameraPosition()
     console.log('已添加当前相机位置')
     await loadPositions()
@@ -62,14 +48,14 @@ const addCurrentCameraPosition = async () => {
 // 更新指定索引的相机位置
 const updateCameraPosition = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     if (selectedPositionIndex.value < 0) {
       console.warn('请先选择一个相机位置')
       return
     }
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.updateCameraPositionWithIndex(selectedPositionIndex.value)
     console.log(`已更新索引为 ${selectedPositionIndex.value} 的相机位置`)
     await loadPositions()
@@ -81,14 +67,14 @@ const updateCameraPosition = async () => {
 // 更新指定索引的飞行时间
 const updateFlyDuration = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     if (selectedPositionIndex.value < 0) {
       console.warn('请先选择一个相机位置')
       return
     }
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.updateCameraFlyDurationWithIndex(selectedPositionIndex.value, flyDuration.value)
     console.log(`已更新索引为 ${selectedPositionIndex.value} 的飞行时间为 ${flyDuration.value}`)
     await loadPositions()
@@ -100,14 +86,14 @@ const updateFlyDuration = async () => {
 // 删除指定索引的相机位置
 const removeCameraPosition = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     if (selectedPositionIndex.value < 0) {
       console.warn('请先选择一个相机位置')
       return
     }
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.removeCameraPositionWithIndex(selectedPositionIndex.value)
     console.log(`已删除索引为 ${selectedPositionIndex.value} 的相机位置`)
     selectedPositionIndex.value = -1
@@ -120,9 +106,9 @@ const removeCameraPosition = async () => {
 // 清除所有相机位置
 const clearAllPositions = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.clearCameraPosition()
     console.log('已清除所有相机位置')
     selectedPositionIndex.value = -1
@@ -135,14 +121,14 @@ const clearAllPositions = async () => {
 // 飞到指定索引的相机位置
 const flyToPosition = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     if (selectedPositionIndex.value < 0) {
       console.warn('请先选择一个相机位置')
       return
     }
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.flyToCameraPositionWithIndex(selectedPositionIndex.value)
     console.log(`正在飞往索引为 ${selectedPositionIndex.value} 的相机位置`)
   } catch (error) {
@@ -153,9 +139,9 @@ const flyToPosition = async () => {
 // 开始全部飞行
 const startFlightAll = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.startFlightAll()
     isFlying.value = true
     console.log('已开始全部飞行')
@@ -167,9 +153,9 @@ const startFlightAll = async () => {
 // 停止全部飞行
 const stopFlightAll = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     await layer.stopFlightAll()
     isFlying.value = false
     console.log('已停止全部飞行')
@@ -181,12 +167,12 @@ const stopFlightAll = async () => {
 // 获取所有点位信息
 const loadPositions = async () => {
   try {
-    if (!currentLayerId.value) {
+    if (!currentLayer.value) {
       cameraPositions.value = []
       return
     }
     
-    const layer = getLayerInstance()
+    const layer = currentLayer.value
     const positions = await layer.getAllPositionInfo()
     cameraPositions.value = positions
     console.log('已获取所有相机点位信息:', positions)
@@ -198,13 +184,9 @@ const loadPositions = async () => {
 // 定位图层
 const locateLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    const allLayers = await pRoot.getAllLayer()
-    if (allLayers && allLayers.length > 0) {
-      await allLayers[0].flyToThis()
-    }
+    await currentLayer.value.flyToThis()
   } catch (error) {
     console.error('定位图层失败:', error)
   }
@@ -213,11 +195,11 @@ const locateLayer = async () => {
 // 显隐图层
 const toggleLayerVisibility = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    layerVisible.value = !layerVisible.value
-    await pRoot.setVisible(layerVisible.value)
+    const visible = !layerVisible.value
+    await currentLayer.value.setVisible(visible)
+    layerVisible.value = visible
   } catch (error) {
     console.error('切换图层可见性失败:', error)
   }
@@ -226,11 +208,12 @@ const toggleLayerVisibility = async () => {
 // 删除图层
 const deleteLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
-    currentLayerId.value = ''
+    await currentLayer.value.removeInstance()
+    layerVisible.value = true
+    currentLayer.value = null
+    isFlying.value = false
     cameraPositions.value = []
     selectedPositionIndex.value = -1
   } catch (error) {
@@ -265,7 +248,7 @@ const selectPosition = (index: number) => {
         type="primary" 
         @click="locateLayer" 
         style="margin: 10px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         定位图层
       </el-button>
       
@@ -273,7 +256,7 @@ const selectPosition = (index: number) => {
         :type="layerVisible ? 'warning' : 'success'" 
         @click="toggleLayerVisibility"
         style="margin: 10px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         {{ layerVisible ? '隐藏图层' : '显示图层' }}
       </el-button>
       
@@ -281,7 +264,7 @@ const selectPosition = (index: number) => {
         type="danger" 
         @click="deleteLayer"
         style="margin: 10px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         删除图层
       </el-button>
     </div>
@@ -301,7 +284,7 @@ const selectPosition = (index: number) => {
         <el-button 
           type="warning" 
           @click="updateCameraPosition"
-          :disabled="selectedPositionIndex < 0 || !currentLayerId"
+          :disabled="selectedPositionIndex < 0 || !currentLayer"
           style="margin: 5px;">
           更新选中位置
         </el-button>
@@ -309,7 +292,7 @@ const selectPosition = (index: number) => {
         <el-button 
           type="danger" 
           @click="removeCameraPosition"
-          :disabled="selectedPositionIndex < 0 || !currentLayerId"
+          :disabled="selectedPositionIndex < 0 || !currentLayer"
           style="margin: 5px;">
           删除选中位置
         </el-button>
@@ -317,7 +300,7 @@ const selectPosition = (index: number) => {
         <el-button 
           type="danger" 
           @click="clearAllPositions"
-          :disabled="!currentLayerId || cameraPositions.length === 0"
+          :disabled="!currentLayer || cameraPositions.length === 0"
           style="margin: 5px;">
           清除所有位置
         </el-button>
@@ -337,7 +320,7 @@ const selectPosition = (index: number) => {
           <el-button 
             type="success" 
             @click="updateFlyDuration"
-            :disabled="selectedPositionIndex < 0 || !currentLayerId"
+            :disabled="selectedPositionIndex < 0 || !currentLayer"
             style="margin-left: 10px;">
             更新飞行时间
           </el-button>
@@ -347,7 +330,7 @@ const selectPosition = (index: number) => {
           <el-button 
             type="primary" 
             @click="flyToPosition"
-            :disabled="selectedPositionIndex < 0 || !currentLayerId"
+            :disabled="selectedPositionIndex < 0 || !currentLayer"
             style="margin: 5px;">
             飞到选中位置
           </el-button>
@@ -355,7 +338,7 @@ const selectPosition = (index: number) => {
           <el-button 
             :type="isFlying ? 'danger' : 'success'" 
             @click="isFlying ? stopFlightAll() : startFlightAll()"
-            :disabled="!currentLayerId || cameraPositions.length === 0"
+            :disabled="!currentLayer || cameraPositions.length === 0"
             style="margin: 5px;">
             {{ isFlying ? '停止全部飞行' : '开始全部飞行' }}
           </el-button>
@@ -391,7 +374,7 @@ const selectPosition = (index: number) => {
 
     <!-- 状态提示 -->
     <div class="status-panel">
-      <p v-if="currentLayerId">当前图层ID: {{ currentLayerId }}</p>
+      <p v-if="currentLayer">当前图层ID: {{ currentLayer.id }}</p>
       <p v-else>未创建图层</p>
       <p v-if="selectedPositionIndex >= 0">已选择位置: {{ selectedPositionIndex + 1 }}</p>
       <p v-if="isFlying">飞行状态: 正在飞行</p>

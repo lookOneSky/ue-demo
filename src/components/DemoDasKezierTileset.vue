@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { computed, ref } from 'vue'
 import Scene from './lib/Scene/Scene.js'
 import { DasModelTilesetLayer } from './lib/Layer/Tileset/DasModelTilesetLayer.js'
 
@@ -144,12 +145,12 @@ const flyTo = async (layer: any, name: string) => {
   }
 }
 
-onBeforeUnmount(() => {
+onViewerSessionLeave(async () => {
   if (dtLayer.value) {
-    dtLayer.value.removeInstance()
+    await dtLayer.value.removeInstance()
   }
   if (kzeLayer.value) {
-    kzeLayer.value.removeInstance()
+    await kzeLayer.value.removeInstance()
   }
 })
 </script>

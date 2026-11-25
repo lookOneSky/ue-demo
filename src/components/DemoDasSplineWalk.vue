@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref } from 'vue'
 import { DasSpline } from "./lib/Layer/DasSplineLayer.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 import { DasPointEditTool } from "./lib/Tool/DasPointEditTool.js"
 import { DasSplineWalk } from "./lib/Tool/DasSplineWalk.js"
 
 const currentSplineLayer = ref<any>(null)
+const createdLayers = new Set<DasSpline>()
+
 const isEditMode = ref(false)
 const isSplineBound = ref(false)
 const isMoving = ref(false)
@@ -29,6 +31,8 @@ const createSplineLayer = async () => {
       }
     })
 
+    if (!splineLayer) return
+    createdLayers.add(splineLayer)
     currentSplineLayer.value = splineLayer
     isSplineBound.value = false
     actionMessage.value = '样条线图层已创建，可进入编辑'
@@ -179,8 +183,10 @@ const clearAll = async () => {
       await stopEditTool()
     }
 
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
+    for (const layer of [...createdLayers].reverse()) {
+      await layer.removeInstance()
+      createdLayers.delete(layer)
+    }
 
     currentSplineLayer.value = null
     isSplineBound.value = false
@@ -194,6 +200,10 @@ const clearAll = async () => {
     actionMessage.value = '清空失败'
   }
 }
+onViewerSessionLeave(async () => {
+  if (isMoving.value) await DasSplineWalk.setEnableAutoMove(false)
+  if (isEditMode.value) await DasPointEditTool.finishTool()
+})
 </script>
 
 <template>
@@ -283,7 +293,7 @@ const clearAll = async () => {
         style="margin: 10px;"
         @click="clearAll"
       >
-        清空全部
+        清空本示例
       </el-button>
     </div>
 

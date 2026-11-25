@@ -38,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { inject, ref, onMounted } from 'vue'
 import DasFreeFlightCamera from './lib/Scene/DasFreeFlightCamera.js'
 
 const moveSpeed = ref(1200.0)
@@ -75,7 +75,9 @@ const handleSpeedChange = () => {
 }
 
 // 初始化获取当前速度
+const getShareData = inject<(key: string) => unknown>('getShareData')
 onMounted(() => {
+  if (!getShareData?.('viewerReady')) return
   getMoveSpeed()
 })
 </script>

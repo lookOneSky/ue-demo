@@ -11,6 +11,7 @@ const emit = defineEmits<{
   status: [ready: boolean, label: string]
   command: [message: { commandID: string; class: string; function: string; sent: boolean }]
   response: [message: string]
+  commandError: [error: { commandID: string; message: string }]
 }>()
 const setShareData = inject<(key: string, value: unknown) => void>('setShareData')
 const addHandler = inject<(handler: (message: { action: string; data: unknown }) => void) => () => void>('addHandler')
@@ -21,8 +22,13 @@ let observer: ResizeObserver | undefined
 let unsubscribe: (() => void) | undefined
 let frame = 0
 const listeners = new AbortController()
+let connected = false
 
 function setStatus(ready: boolean, label: string) {
+  if (connected !== ready) {
+    connected = ready
+    setShareData?.('viewerSession', ready ? {} : null)
+  }
   setShareData?.('viewerReady', ready)
   emit('status', ready, label)
 }
@@ -53,7 +59,7 @@ onMounted(() => {
     if (channelOpen) {
       const video = player.value?.querySelector('video')
       const canSend = Boolean(video && video.readyState > 0)
-      setStatus(canSend, canSend ? 'UE 已连接' : '正在准备视频')
+      setStatus(canSend, canSend ? 'UE 视口已连接' : '正在准备视频')
     }
   }
   stream.addEventListener('webRtcConnecting', () => { channelOpen = false; setStatus(false, '正在连接 UE') })
@@ -67,7 +73,8 @@ onMounted(() => {
   player.value!.addEventListener('playing', event => {
     if (event.target instanceof HTMLVideoElement) { hasVideo.value = true; reportReady() }
   }, { capture: true, signal: listeners.signal })
-  viewer.addEventListener('ueCommand', (event: CustomEvent) => emit('command', event.detail))
+  viewer.addEventListener('ueCommand', event => emit('command', (event as CustomEvent).detail))
+  viewer.addEventListener('ueCommandError', event => emit('commandError', (event as CustomEvent).detail))
   viewer.addResponseEventListener('ApiDemoWorkbench', (raw: string) => emit('response', raw))
   unsubscribe = addHandler?.(({ action, data }) => viewer.sendMessage({
     EventName: action, Params: typeof data === 'object' ? JSON.stringify(data) : data
@@ -83,6 +90,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  setStatus(false, 'UE 已断开')
   listeners.abort()
   observer?.disconnect()
   unsubscribe?.()
@@ -91,8 +99,6 @@ onBeforeUnmount(() => {
   viewer?.dispose()
   if (window.viewer === viewer) {
     window.viewer = undefined
-    // SDK reply listeners belong to the disposed stream.
-    Object.assign(window, { gInitListener: false })
   }
 })
 </script>

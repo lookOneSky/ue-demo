@@ -1,16 +1,18 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasPolylineTool } from "./lib/Tool/DasPolylineTool.js"
 import { DasPolylineLayer } from "./lib/Layer/DasPolylineLayer.js"
 import { DasCarLayer } from "./lib/Layer/DasCarLayer.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 
 // 工具状态
+const createdLayers = new Set<DasCarLayer | DasPolylineLayer>()
+
 const isToolActive = ref(false)
 
 // 路线和车辆状态
-const currentRouteLayer = ref(null)
-const currentCarLayer = ref(null)
+const currentRouteLayer = ref<DasPolylineLayer | null>(null)
+const currentCarLayer = ref<DasCarLayer | null>(null)
 const hasRoute = ref(false)
 
 // 可选的蓝图路径列表
@@ -40,9 +42,9 @@ const carParams = reactive({
   lightOn: false,
   color: '#ff0000', // 使用十六进制颜色，后续转换
   transform: {
-    translation: { x: 0, y: 0, z: 0 },
-    rotation: { pitch: 0, yaw: 0, roll: 0 },
-    scale3D: { x: 1, y: 1, z: 1 }
+    translation: [0, 0, 0],
+    rotation: [0, 0, 0, 1],
+    scale3D: [1, 1, 1]
   }
 })
 
@@ -50,7 +52,7 @@ const carParams = reactive({
 const isMoving = ref(false)
 
 // 将十六进制颜色转换为 RGBA 数组
-const hexToRGBA = (hex) => {
+const hexToRGBA = (hex: string) => {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
   return result ? {
     r: parseInt(result[1], 16) / 255,
@@ -86,7 +88,7 @@ const startTool = async () => {
 const stopTool = async () => {
   try {
     isToolActive.value = false
-    DasPolylineTool.finishTool()
+    await DasPolylineTool.finishTool()
     console.log('路径绘制工具已停止')
   } catch (error) {
     console.error('停止路径绘制工具失败:', error)
@@ -109,8 +111,10 @@ const createRoute = async () => {
     
     // 创建路线图层
     const routeLayer = await DasPolylineLayer.createInstance({ "param": toolData })
+    if (!routeLayer) return
+    createdLayers.add(routeLayer)
     currentRouteLayer.value = routeLayer
-    hasRoute.value = true
+    hasRoute.value = !!routeLayer
     
     console.log('路线创建成功:', routeLayer)
   } catch (error) {
@@ -141,6 +145,8 @@ const createCar = async () => {
     
     // 创建车辆图层
     const carLayer = await DasCarLayer.createInstance(params)
+    if (!carLayer) return
+    createdLayers.add(carLayer)
     currentCarLayer.value = carLayer
     
     console.log('车辆创建成功:', carLayer)
@@ -238,9 +244,10 @@ const clearAll = async () => {
       await stopMovement()
     }
     
-    // 删除所有图层
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
+    for (const layer of [...createdLayers].reverse()) {
+      await layer.removeInstance()
+      createdLayers.delete(layer)
+    }
     
     // 重置状态
     currentRouteLayer.value = null
@@ -279,6 +286,9 @@ const getCarData = async () => {
     console.error('获取车辆数据失败:', error)
   }
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return DasPolylineTool.finishTool()
+})
 </script>
 
 <template>
@@ -406,7 +416,7 @@ const getCarData = async () => {
         type="danger" 
         @click="clearAll"
         style="margin: 10px;">
-        清空所有
+        清空本示例
       </el-button>
     </div>
 

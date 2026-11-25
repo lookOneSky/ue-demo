@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementAngle } from './lib/Tool/DasToolMeasurementAngle.js'
 
@@ -87,6 +88,9 @@ const loadStyle = async () => {
   await tool.getArcSegmentCount((result: any) => { lineStyle.arcSegmentCount = result?.arcSegmentCount ?? lineStyle.arcSegmentCount })
   await tool.getLabelPixelOffset((result: any) => { lineStyle.labelPixelOffset = result?.labelPixelOffset ?? lineStyle.labelPixelOffset })
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return tool.finishTool()
+})
 </script>
 
 <template>

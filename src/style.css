@@ -120,3 +120,5 @@ body:has(.api-workbench.has-expanded) { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .api-workbench *, .api-workbench *::before, .api-workbench *::after { scroll-behavior: auto !important; transition-duration: 0s !important; }
 }
+
+.panel-connection-note { margin: 0; padding: 8px 16px; color: #435b76; background: #f1f5fa; font-size: 13px; }

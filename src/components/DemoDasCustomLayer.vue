@@ -1,9 +1,7 @@
 <script setup lang="ts">
-// @ts-nocheck
 import { ref, watch } from 'vue'
 import { DasCustomLayer } from './lib/Layer/DasCustomLayer.js'
 import { DasGizmosOperateTool } from './lib/Tool/DasGizmosOperateTool.js'
-import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
 
 const assetOptions = [
   { label: 'Guide', value: 'Guide' }
@@ -89,18 +87,16 @@ watch(selectedAssetName, async (assetName) => {
 const clearAll = async () => {
   try {
     await DasGizmosOperateTool.setOperateType(0)
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
-  } catch (error) {
-    console.error('清空自定义图层失败:', error)
-  } finally {
+    for (const layer of [...complexLayers.value]) {
+      await layer.removeInstance()
+      complexLayers.value = complexLayers.value.filter(item => item !== layer)
+    }
+    if (activeLayer.value) await activeLayer.value.removeInstance()
     activeLayer.value = null
-    complexLayers.value = []
     selectedAssetName.value = defaultAssetName
     currentAssetName.value = defaultAssetName
-    isCreating.value = false
-    isCreatingComplexLayer.value = false
-    isSwitchingAsset.value = false
+  } catch (error) {
+    console.error('清空自定义图层失败:', error)
   }
 }
 </script>
@@ -172,7 +168,7 @@ const clearAll = async () => {
     <div class="control-group">
       <h4 class="section-title">清理</h4>
       <div class="step-section">
-        <el-button type="danger" size="small" @click="clearAll">清空所有</el-button>
+        <el-button type="danger" size="small" @click="clearAll">清空本示例</el-button>
       </div>
     </div>
   </div>

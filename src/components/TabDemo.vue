@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, type Component } from 'vue'
 import WorkbenchIcon from './WorkbenchIcon.vue'
 import SceneViewport from './sence.vue'
 import ApiDemoCatalog from './ApiDemoCatalog.vue'
@@ -9,7 +9,7 @@ import ApiReference from './ApiReference.vue'
 import { demoCatalog, type CatalogNode } from './demoCatalog'
 
 const panels = import.meta.glob<Component>(
-  ['./Demo*.vue', './Das*Demo.vue', './SceneDemo.vue', './levelSequence.vue', './weatherDemo.vue'],
+  ['./Demo*.vue', './Das*Demo.vue', './ScreenPosInformerDemo.vue', './SceneDemo.vue', './levelSequence.vue', './weatherDemo.vue'],
   { eager: true, import: 'default' },
 )
 
@@ -25,15 +25,11 @@ const path = computed(() => paths.get(selected.value)!)
 const entry = computed(() => path.value[path.value.length - 1]!)
 const component = computed(() => panels['./' + entry.value.file + '.vue'])
 const camera = computed(() => selected.value === 'camera-universal')
-const title = computed(() => camera.value ? '相机控制' : entry.value.name)
-const descriptions: Record<string, string> = {
-  'camera-universal': '控制三维场景中的相机位置、观察方向与飞行时间。',
-  tool: '在参数面板中配置工具，并在场景视口中操作。',
-  scene: '在参数面板中调用场景接口，在视口中查看变化。',
-  layer: '配置图层并在场景中查看渲染效果。',
-  app: '通过桌面应用桥接接口控制 Electron 应用。',
-}
-const description = computed(() => descriptions[selected.value] || descriptions[path.value[0]!.id])
+// These panels already gate their UE commands and offer local actions before connection.
+const handlesOffline = computed(() => camera.value || [
+  'polylineTool', 'polylineLayer', 'videoCompositeLayer', 'gizmosAxisColors', 'closeElectronApp',
+].includes(selected.value))
+const title = computed(() => entry.value.name)
 
 const guide = ref(false)
 const catalog = ref<InstanceType<typeof ApiDemoCatalog>>()
@@ -50,6 +46,7 @@ const isCompact = ref(compact.matches)
 const expanded = ref<'scene' | 'parameters' | null>(null)
 const ready = ref(false)
 const connection = ref('正在连接 UE')
+const sessionNumber = ref(0)
 const result = ref('')
 const snippet = ref('')
 const showResult = ref(false)
@@ -71,6 +68,7 @@ function selectExample(id: string) {
     nextTick(() => main.value?.focus({ preventScroll: true }))
   }
 }
+provide('selectExample', selectExample)
 
 function showGuide(open: boolean) {
   guide.value = open
@@ -103,6 +101,7 @@ function shortcut(event: KeyboardEvent) {
   }
 }
 function setConnection(connected: boolean, label: string) {
+  if (connected && !ready.value) sessionNumber.value++
   ready.value = connected
   connection.value = label
   if (!connected && lastCommand) {
@@ -118,6 +117,11 @@ function onCommand(message: { commandID: string; class: string; function: string
   if (camera.value) return
   lastCommand = message.sent ? message.commandID : ''
   result.value = message.class + '.' + message.function + (message.sent ? '　等待 UE 返回…' : '　当前视口未就绪，调用未发送。')
+}
+function onCommandError(error: { commandID: string; message: string }) {
+  if (lastCommand !== error.commandID) return
+  lastCommand = ''
+  result.value = error.message
 }
 function onResponse(raw: string) {
   if (!lastCommand) return
@@ -165,7 +169,7 @@ onBeforeUnmount(() => {
           <div class="workspace-intro" :inert="!!expanded">
             <nav class="studio-crumb" aria-label="当前位置"><WorkbenchIcon name="grid" /><span>示例工作台</span><template v-for="item in path" :key="item.id"><WorkbenchIcon name="chevron" /><span>{{ item.name }}</span></template></nav>
             <div class="studio-title"><h1>{{ title }}</h1><code v-if="entry.owner">{{ entry.owner }}</code></div>
-            <p>{{ description }}</p>
+            <p v-if="entry.description">{{ entry.description }}</p>
           </div>
           <div class="studio-workarea">
             <section class="studio-card scene-card" :class="{ enlarged: expanded === 'scene' }" :inert="expanded === 'parameters'" aria-label="场景视口">
@@ -175,7 +179,7 @@ onBeforeUnmount(() => {
                   <WorkbenchIcon name="expand" />{{ expanded === 'scene' ? '还原视口' : '放大视口' }}
                 </button>
               </header>
-              <div class="scene-surface"><SceneViewport @status="setConnection" @command="onCommand" @response="onResponse" /></div>
+              <div class="scene-surface"><SceneViewport @status="setConnection" @command="onCommand" @response="onResponse" @command-error="onCommandError" /></div>
               <footer class="scene-foot"><span><span class="signal-dot" :class="{ online: ready }"></span>{{ connection }}</span><span>Pixel Streaming · UE 5.3</span></footer>
             </section>
             <section class="studio-card parameters-card" :class="{ enlarged: expanded === 'parameters' }" :inert="expanded === 'scene'" aria-label="参数配置">
@@ -189,9 +193,10 @@ onBeforeUnmount(() => {
                   </button>
                 </div>
               </header>
-              <div ref="parameterBody" class="demo-panel-content" :class="{ 'legacy-panel': !camera }">
+              <p v-if="!ready && !handlesOffline" class="panel-connection-note">连接 UE 场景后即可操作参数。</p>
+              <div ref="parameterBody" class="demo-panel-content" :class="{ 'legacy-panel': !camera }" :inert="!handlesOffline && !ready">
                 <component v-if="camera" :is="component" ref="cameraPanel" :ready="ready" @snippet="snippet = $event" @result="onCameraResult" />
-                <component v-else :is="component" :key="selected" />
+                <component v-else :is="component" :key="handlesOffline ? selected : selected + sessionNumber" />
               </div>
             </section>
           </div>

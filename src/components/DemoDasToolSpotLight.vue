@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, watch } from 'vue'
 import { DasToolSpotLight } from './lib/Tool/DasToolSpotLight.js'
 import { Weather } from './lib/Scene/Weather.js'
@@ -110,6 +111,9 @@ watch(() => lightParams.value.distance, updateDistance)
 
 // 半径变化监听
 watch(() => lightParams.value.radius, updateRadius)
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return spotLightTool.finishTool()
+})
 </script>
 
 <template>

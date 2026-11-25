@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { DasToolSelectFitPolygon } from './lib/Tool/DasToolSelectFitPolygon.js'
 
@@ -218,7 +219,10 @@ onMounted(() => {
 
 // 组件卸载前移除响应事件监听
 onBeforeUnmount(() => {
-  removeSelectionEventListener()
+  if (isToolActive.value && window.viewer) removeSelectionEventListener()
+})
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return DasToolSelectFitPolygon.finishTool()
 })
 </script>
 

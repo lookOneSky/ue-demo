@@ -1,19 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-
-interface CatalogItem {
-  id: string
-  name: string
-  children?: CatalogItem[]
-}
+import type { CatalogNode } from './demoCatalog'
 
 interface CatalogRow {
-  item: CatalogItem
-  parents: CatalogItem[]
+  item: CatalogNode
+  parents: CatalogNode[]
   group: boolean
 }
 
-const props = defineProps<{ items: CatalogItem[]; activeId: string }>()
+const props = defineProps<{ items: CatalogNode[]; activeId: string }>()
 const emit = defineEmits<{ select: [id: string]; close: [] }>()
 const searchInput = ref<HTMLInputElement>()
 const query = ref('')
@@ -22,6 +17,8 @@ const expanded = ref(new Set<string>())
 const foldedMatches = ref(new Set<string>())
 
 const icons: Record<string, string> = {
+  camera: 'M3 7h4l2-3h6l2 3h4v13H3z M15.5 13a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0z',
+  spatial: 'm3 15 12-12 6 6L9 21z M12 6l3 3 M9 9l2 2 M6 12l3 3',
   scene: 'M3 17l5.8-10 4.3 7 2.8-4.5L21 18H3z M15.6 5.8h.01',
   tool: 'M14.5 5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.4-6.3l-3.1 3-2.6-2.6z',
   layer: 'm12 3 9 5-9 5-9-5z M3 12l9 5 9-5 M3 16l9 5 9-5',
@@ -31,7 +28,7 @@ const icons: Record<string, string> = {
 
 const rows = computed(() => {
   const result: CatalogRow[] = []
-  function visit(items: CatalogItem[], parents: CatalogItem[]) {
+  function visit(items: CatalogNode[], parents: CatalogNode[]) {
     for (const item of items) {
       result.push({ item, parents, group: Boolean(item.children) })
       if (item.children) visit(item.children, [...parents, item])
@@ -42,17 +39,26 @@ const rows = computed(() => {
 })
 const leaves = computed(() => rows.value.filter(row => !row.group))
 const activeRow = computed(() => leaves.value.find(row => row.item.id === props.activeId))
-watch(activeRow, row => {
-  row?.parents.forEach(parent => expanded.value.add(parent.id))
-}, { immediate: true })
 watch(keyword, () => foldedMatches.value.clear())
 
 const matches = computed(() => {
   if (!keyword.value) return leaves.value
-  return leaves.value.filter(row => [...row.parents, row.item].some(item =>
-    item.name.toLowerCase().includes(keyword.value) || item.id.toLowerCase().includes(keyword.value)
-  ))
+  const terms = keyword.value.split(/\s+/)
+  return leaves.value.filter(({ parents, item }) => {
+    const path = [...parents, item].map(node => node.name + ' ' + node.id).join(' ')
+    const text = (path + ' ' + (item.owner || '')).toLowerCase()
+    return terms.every(term => text.includes(term))
+  })
 })
+
+watch(activeRow, row => {
+  if (!row) return
+  if (keyword.value && !matches.value.includes(row)) query.value = ''
+  for (const parent of row.parents) {
+    expanded.value.add(parent.id)
+    foldedMatches.value.delete(parent.id)
+  }
+}, { immediate: true })
 
 function isOpen(id: string) {
   return keyword.value ? !foldedMatches.value.has(id) : expanded.value.has(id)
@@ -98,7 +104,7 @@ defineExpose({ focusSearch })
     </header>
     <div class="catalog-search">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.8" /><path d="m16 16 4.5 4.5" /></svg>
-      <input ref="searchInput" v-model="query" type="search" placeholder="搜索示例或 ID" aria-label="搜索示例名称或 ID" />
+      <input ref="searchInput" v-model="query" type="search" placeholder="搜索示例、分类或 SDK 类" aria-label="搜索示例名称、ID、分类或 SDK 类名" />
     </div>
     <nav class="catalog-list" aria-label="按类别选择示例">
       <div

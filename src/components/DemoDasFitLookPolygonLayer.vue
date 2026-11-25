@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref } from 'vue'
 import { DasPointEditTool } from './lib/Tool/DasPointEditTool.js'
 import { DasFitLookPolygonLayer } from './lib/Layer/DasFitLookPolygonLayer.js'
-import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
 
 // 工具状态
 const isToolActive = ref(false)
@@ -36,21 +36,21 @@ const buildLayerConfig = () => ({
 
 // 启动工具（绘制新点）
 const startTool = async () => {
-  await DasPointEditTool.setToCurrent()
-  isToolActive.value = true
+  isToolActive.value = await DasPointEditTool.setToCurrent()
 }
 
 // 停止工具
 const stopTool = async () => {
-  DasPointEditTool.finishTool()
+  await DasPointEditTool.finishTool()
   isToolActive.value = false
 }
 
 // 创建图层
 const createLayer = async () => {
-  DasPointEditTool.finishTool()
-  isToolActive.value = false
-  const result = await DasFitLookPolygonLayer.createInstance({ param: buildLayerConfig() })
+  const points = await DasPointEditTool.getPointsLLH()
+  if (isToolActive.value) await stopTool()
+  const param = { ...buildLayerConfig(), points }
+  const result = await DasFitLookPolygonLayer.createInstance({ param })
   if (result) {
     currentLayer.value = result
     currentLayerId.value = result.id
@@ -62,7 +62,9 @@ const createLayer = async () => {
 const editLayer = async () => {
   if (!currentLayer.value) return
   await currentLayer.value.setUseCameraCalNormal(layerParams.value.useCameraCalNormal)
-  await DasPointEditTool.editLayer(currentLayer.value)
+  if (await DasPointEditTool.editLayer(currentLayer.value)) {
+    isToolActive.value = await DasPointEditTool.setToCurrent()
+  }
 }
 
 // 复制当前图层（顶点与属性取自当前图层）
@@ -80,15 +82,17 @@ const locateLayer = async () => {
 
 // 显隐图层
 const toggleLayerVisibility = async () => {
-  const pRoot = await DasGroupLayer.getRoot()
-  layerVisible.value = !layerVisible.value
-  await pRoot.setVisible(layerVisible.value)
+  if (!currentLayer.value) return
+  const visible = !layerVisible.value
+  await currentLayer.value.setVisible(visible)
+  layerVisible.value = visible
 }
 
 // 删除图层
 const deleteLayer = async () => {
-  const pRoot = await DasGroupLayer.getRoot()
-  await pRoot.removeAllLayer()
+  if (!currentLayer.value) return
+  if (isToolActive.value) await stopTool()
+  await currentLayer.value.removeInstance()
   currentLayerId.value = ''
   currentLayer.value = null
 }
@@ -140,6 +144,9 @@ const updateAll = async () => {
   if (!currentLayer.value) return
   await currentLayer.value.updateAll(buildLayerConfig())
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return DasPointEditTool.finishTool()
+})
 </script>
 
 <template>

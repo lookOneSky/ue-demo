@@ -1,24 +1,25 @@
 <script setup lang="ts">
+import { useMessageSender } from "../utils/useMessageSender"
 
-import { ref, inject, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { Weather } from "./lib/Scene/Weather.js";
 
 
-defineProps<{ msg: string }>()
+defineProps<{ msg?: string }>()
 
-const onMessage = inject('onMessage')
+const onMessage = useMessageSender()
 
-const selectedWeather = ref(null);
+const selectedWeather = ref<number | null>(null);
 const weathers = ref([
-  { imgSrc: "/src/assets/images/wea1.png", name: "晴" },
-  { imgSrc: "/src/assets/images/wea2.png", name: "多云" },
-  { imgSrc: "/src/assets/images/wea3.png", name: "雾" },
-  { imgSrc: "/src/assets/images/wea4.png", name: "雨" },
-  { imgSrc: "/src/assets/images/wea5.png", name: "雷雨" },
-  { imgSrc: "/src/assets/images/wea6.png", name: "雪" },
-  { imgSrc: "/src/assets/images/wea7.png", name: "暴风雪" }
+  { imgSrc: new URL("../assets/images/wea1.png", import.meta.url).href, name: "晴" },
+  { imgSrc: new URL("../assets/images/wea2.png", import.meta.url).href, name: "多云" },
+  { imgSrc: new URL("../assets/images/wea3.png", import.meta.url).href, name: "雾" },
+  { imgSrc: new URL("../assets/images/wea4.png", import.meta.url).href, name: "雨" },
+  { imgSrc: new URL("../assets/images/wea5.png", import.meta.url).href, name: "雷雨" },
+  { imgSrc: new URL("../assets/images/wea6.png", import.meta.url).href, name: "雪" },
+  { imgSrc: new URL("../assets/images/wea7.png", import.meta.url).href, name: "暴风雪" }
 ]);
-const setWeather = (index) => {
+const setWeather = (index: number) => {
     selectedWeather.value = index
     const weather = weathers.value[index].name;
     onMessage({ action: 'setWeather', data: weather });
@@ -29,14 +30,14 @@ const wind = ref({
     intensity: 0
 })
 
-watch(() => wind.value.direction, (newValue, oldValue) => {
+watch(() => wind.value.direction, newValue => {
     //onMessage({ action: 'WindSetDirection', data: newValue / 100 * 360 });
     Weather.SetWindDirection(newValue / 100 * 360);
 });
 
-watch(() => wind.value.intensity, (newValue, oldValue) => {
+watch(() => wind.value.intensity, newValue => {
     //onMessage({ action: 'WindSetIntensity', data: newValue / 100 * 4 + 1 });
-    Weather.SetWindIntensity(newValue);
+    Weather.SetWindIntensity(newValue * 0.05);
 });
 
 const controlWeather = ref(false)
@@ -55,14 +56,20 @@ const controlConfig = ref({
     snowCoverIntensity: 0
 })
 
-const actionSetZeroToMax = (action, value, max) => {
+const actionSetZeroToMax = (action: string, value: number, max: number) => {
     onMessage({action, data: value / 100 * max}) ;
 }
 
-watch(() => controlWeather.value, (newValue, oldValue) => {
+watch(() => controlWeather.value, newValue => {
     if (newValue) {
         onMessage({ action: 'SetControlCloud', data: controlConfig.value.cloud });
+        if (controlConfig.value.cloud) {
+            actionSetZeroToMax('SetControlCloudIntensity', controlConfig.value.cloudIntensity, 10);
+        }
         onMessage({ action: 'SetControlRain', data: controlConfig.value.rain });
+        if (controlConfig.value.rain) {
+            actionSetZeroToMax('SetControlRainIntensity', controlConfig.value.rainIntensity, 10);
+        }
         onMessage({ action: 'SetControlSnow', data: controlConfig.value.snow });
         if (controlConfig.value.snow) {
             actionSetZeroToMax('SetControlSnowIntensity', controlConfig.value.snowIntensity, 10);
@@ -89,82 +96,80 @@ watch(() => controlWeather.value, (newValue, oldValue) => {
     }
 });
 
-watch(() => controlConfig.value.cloud, (newValue, oldValue) => {
-    Weather.SetControlCloudIntensity(controlConfig.value.cloudIntensity);
-
-    //onMessage({ action: 'SetControlCloud', data: newValue });
+watch(() => controlConfig.value.cloud, newValue => {
+    onMessage({ action: 'SetControlCloud', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlCloudIntensity', controlConfig.value.cloudIntensity, 10);
     }
 });
 
-watch(() => controlConfig.value.rain, (newValue, oldValue) => {
+watch(() => controlConfig.value.rain, newValue => {
     onMessage({ action: 'SetControlRain', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlRainIntensity', controlConfig.value.rainIntensity, 10);
     }
 });
 
-watch(() => controlConfig.value.snow, (newValue, oldValue) => {
+watch(() => controlConfig.value.snow, newValue => {
     onMessage({ action: 'SetControlSnow', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlSnowIntensity', controlConfig.value.snowIntensity, 10);
     }
 });
 
-watch(() => controlConfig.value.fog, (newValue, oldValue) => {
+watch(() => controlConfig.value.fog, newValue => {
     onMessage({ action: 'SetControlFog', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlFogIntensity', controlConfig.value.fogIntensity, 10);
     }
 });
 
-watch(() => controlConfig.value.thunder, (newValue, oldValue) => {
+watch(() => controlConfig.value.thunder, newValue => {
     onMessage({ action: 'SetControlThunder', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlThunderIntensity', controlConfig.value.thunderIntensity, 10);
     }
 });
 
-watch(() => controlConfig.value.snowCover, (newValue, oldValue) => {
+watch(() => controlConfig.value.snowCover, newValue => {
     onMessage({ action: 'SetControlSnowOverlap', data: newValue });
     if (newValue) {
         actionSetZeroToMax('SetControlSnowOverlapIntensity', controlConfig.value.snowCoverIntensity, 1);
     }
 });
 
-watch(() => controlConfig.value.cloudIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.cloudIntensity, newValue => {
     if (controlConfig.value.cloud) {
         actionSetZeroToMax('SetControlCloudIntensity', newValue, 10);
     }
 });
 
-watch(() => controlConfig.value.rainIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.rainIntensity, newValue => {
     if (controlConfig.value.rain) {
         actionSetZeroToMax('SetControlRainIntensity', newValue, 10);
     }
 });
 
-watch(() => controlConfig.value.snowIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.snowIntensity, newValue => {
     if (controlConfig.value.snow) {
         actionSetZeroToMax('SetControlSnowIntensity', newValue, 10);
     }
 });
 
-watch(() => controlConfig.value.fogIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.fogIntensity, newValue => {
     if (controlConfig.value.fog) {
         actionSetZeroToMax('SetControlFogIntensity', newValue, 10);
     }
 });
 
 
-watch(() => controlConfig.value.thunderIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.thunderIntensity, newValue => {
     if (controlConfig.value.thunder) {
         actionSetZeroToMax('SetControlThunderIntensity', newValue, 10);
     }
 });
 
-watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
+watch(() => controlConfig.value.snowCoverIntensity, newValue => {
     if (controlConfig.value.snowCover) {
         actionSetZeroToMax('SetControlSnowOverlapIntensity', newValue, 1);
     }
@@ -194,23 +199,23 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
         <el-form  label-width="175px">
             <el-form-item label="风向">
                 <el-slider v-model="wind.direction" style="margin-left: -15px; margin-top: -20px;"
-                    :format-tooltip="value => parseFloat((value * 3.6).toFixed(1))" :marks="{ 0: '0', 100: '360' }"></el-slider>
+                    :format-tooltip="(value: number) => parseFloat((value * 3.6).toFixed(1))" :marks="{ 0: '0', 100: '360' }"></el-slider>
             </el-form-item>
             <el-form-item label="风力大小" class="ruihua">
                 <el-slider v-model="wind.intensity" style="margin-left: -15px;     margin-top: -20px;"
-                    :format-tooltip="value => parseFloat((value * 0.05).toFixed(1))" :marks="{ 0: '0', 100: '5' }"></el-slider>
+                    :format-tooltip="(value: number) => parseFloat((value * 0.05).toFixed(1))" :marks="{ 0: '0', 100: '5' }"></el-slider>
             </el-form-item>
         </el-form>
         <div class="sec_title">
             <div class="bar" style="margin-top: 12px;"></div>自由天气控制 <el-switch v-model="controlWeather" active-text="ON"
                 inactive-text="OFF" style="margin-left: 195px;" active-color="#E1BB82"></el-switch>
         </div>
-        <el-form ref="form" label-width="150px">
+        <el-form ref="form" label-width="150px" :disabled="!controlWeather">
             <el-form-item label="云">
                 <table>
                     <tr>
                         <td style="width: 240px;"><el-slider v-model="controlConfig.cloudIntensity" style="margin-top: -20px;"
-                                width="160px":format-tooltip="value => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.cloud" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>
@@ -221,7 +226,7 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
                 <table>
                     <tr>
                         <td style="width: 240px;"><el-slider v-model="controlConfig.rainIntensity" style="margin-top: -20px;"
-                                width="160px":format-tooltip="value => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.rain" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>
@@ -232,7 +237,7 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
                 <table>
                     <tr>
                         <td style="width: 240px;"><el-slider v-model="controlConfig.snowIntensity" style="margin-top: -20px;"
-                                width="160px":format-tooltip="value => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.snow" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>
@@ -243,7 +248,7 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
                 <table>
                     <tr>
                         <td style="width: 240px;"><el-slider v-model="controlConfig.fogIntensity" style="margin-top: -20px;"
-                                width="160px" :format-tooltip="value => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.fog" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>
@@ -254,7 +259,7 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
                 <table>
                     <tr>
                         <td style="width: 240px;"> <el-slider v-model="controlConfig.thunderIntensity" style="margin-top: -20px;"
-                                width="160px" :format-tooltip="value => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.1).toFixed(1))" :marks="{ 0: '0', 100: '10' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.thunder" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>
@@ -265,7 +270,7 @@ watch(() => controlConfig.value.snowCoverIntensity, (newValue, oldValue) => {
                 <table>
                     <tr>
                         <td style="width: 240px;"> <el-slider v-model="controlConfig.snowCoverIntensity" style="margin-top: -20px;"
-                                width="160px" :format-tooltip="value => parseFloat((value * 0.01).toFixed(2))" :marks="{ 0: '0', 100: '1' }"></el-slider></td>
+                                width="160px" :format-tooltip="(value: number) => parseFloat((value * 0.01).toFixed(2))" :marks="{ 0: '0', 100: '1' }"></el-slider></td>
                         <td style="width: 0px;"> <el-switch v-model="controlConfig.snowCover" active-text="ON"
                                 inactive-text="OFF" style="margin-left:24px;margin-right:10px;"
                                 active-color="#E1BB82"></el-switch></td>

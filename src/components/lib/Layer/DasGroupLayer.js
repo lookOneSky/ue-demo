@@ -17,7 +17,7 @@ class DasGroupLayer extends DasLayerBase {
 
     // Remove a layer from the group
     removeLayer = async function (childLayer) {
-        const param = { child: childLayer };
+        const param = { child: childLayer.writeObjectJson?.() ?? childLayer };
         return await this.excuteUEClassFunction("removeLayer", param);
     }
 
@@ -32,13 +32,10 @@ class DasGroupLayer extends DasLayerBase {
 
     // Get a layer by index
     getLayer = async function (index) {
-        let layer = null;
-        const param = { index: index };
-        await this.excuteUEClassFunction("getLayer", param, function (json) {
-            layer = new DasLayerBase();
-            layer.readObjectInfo(json);
-        });
-
+        const reply = await this.excuteUEClassFunction("getLayer", { index });
+        if (!reply.layer?.id) return null;
+        const layer = new DasLayerBase();
+        layer.readObjectInfo(reply.layer);
         return layer;
     }
 
@@ -63,11 +60,10 @@ class DasGroupLayer extends DasLayerBase {
 
     // Get the root group
     static getRoot = async function () {
-        let root = null
-        await ExcuteUEFun.excuteUEFunction("DasGroupLayer", "getRoot", {}, function (json) {
-            root = new DasGroupLayer();
-            root.readObjectInfo(json);
-        });
+        const reply = await ExcuteUEFun.excuteUEFunction("DasGroupLayer", "getRoot", {});
+        if (!reply.id) throw new Error("UE 未返回根图层 ID");
+        const root = new DasGroupLayer();
+        root.readObjectInfo(reply);
         return root;
     }
 

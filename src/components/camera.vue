@@ -1,139 +1,71 @@
 <script setup lang="ts">
-import { ref, inject, watch } from 'vue'
+import { inject, onBeforeUnmount, ref, watch } from 'vue'
+import { useMessageSender } from '../utils/useMessageSender'
 import StepCon from './step.vue'
-defineProps<{ msg: string }>()
 
-const curCamera = ref("free")
+defineProps<{ msg?: string }>()
 
-const onMessage = inject("onMessage")
-const subShareData = inject("subShareData")
-const getShareData = inject("getShareData")
-
-const showStepCon = ref(false)
-
-subShareData("viewerReady", (key, value) => {
-	if (value) {
-		onMessage({ action: "GetSequenceKeys", data: 0 })
-		onMessage({ action: "GetPresetViewKeys", data: 0 })
-	}
-})
-
-const sequenceKeys = ref(new Set())
-
-subShareData("sequenceKeys", (key, value) => {
-	if (value) {
-		sequenceKeys.value = new Set(value)
-	}
-})
-
-const presetViewKeys = ref(new Set())
-subShareData("presetViewKeys", (key, value) => {
-	if (value) {
-		presetViewKeys.value = new Set(value)
-	}
-})
-
-let counter = 0
-
-const changeCamera = (camera) => {
-	if (camera == "free") {
-		onMessage({ action: "RemoteSetVisibility", data: false })
-		onMessage({ action: "SwitchCamera", data: -1 })
-		if (showStepCon.value) {
-			showStepCon.value = false;
-			const cameraSetting = document.querySelector('.camera_setting');
-			if (cameraSetting) {
-				cameraSetting.classList.remove('move-up');
-			}
-		}
-	} else if (camera == "tourist") {
-		onMessage({ action: "RemoteSetVisibility", data: false })
-		onMessage({ action: "SwitchCamera", data: 1 })
-		if (showStepCon.value) {
-			showStepCon.value = false;
-			const cameraSetting = document.querySelector('.camera_setting');
-			if (cameraSetting) {
-				cameraSetting.classList.remove('move-up');
-			}
-		}
-	} else if (camera == "fly") {
-		const cameraSetting = document.querySelector('.camera_setting');
-		if (cameraSetting) {
-			cameraSetting.classList.add('move-up');
-			setTimeout(() => {
-				showStepCon.value = true; // Show StepCon
-			}, 500); 
-		}
-		onMessage({ action: "RemoteSetVisibility", data: true })
-		onMessage({ action: "CameraHide", data: true})
-
-		// if (sequenceKeys.value.size > 0) {
-		// 	const sequenceKeysArray = Array.from(sequenceKeys.value)
-		// 	onMessage({ action: 'PlaySequence', data: sequenceKeysArray[0] })
-		// }
-		
-	}
+type CameraMode = 'free' | 'tourist' | 'fly'
+interface CameraState {
+    viewerReady: boolean
+    sequenceKeys: string[]
+    presetViewKeys: string[]
 }
+const curCamera = ref<CameraMode>('free')
+const showStepCon = ref(false)
+const onMessage = useMessageSender()
+const getShareData = inject<<K extends keyof CameraState>(key: K) => CameraState[K] | undefined>('getShareData')!
+const sequenceKeys = () => getShareData('sequenceKeys') || []
+const presetViewKeys = () => getShareData('presetViewKeys') || []
+let counter = 0
+let panelTimer: number | undefined
+let viewTimer: number | undefined
 
-watch(
-	() => curCamera.value,
-	(newValue, oldValue) => {
-		switch (newValue) {
-			case "free":
-				changeCamera("free")
-				break
-			case "fly":
-				changeCamera("fly")
-				break
-			case "tourist":
-				changeCamera("tourist")
-				break
-			default:
-				break
-		}
-	}
-)
+watch(() => getShareData('viewerReady'), ready => {
+    if (ready) {
+        onMessage({ action: 'GetSequenceKeys', data: 0 })
+        onMessage({ action: 'GetPresetViewKeys', data: 0 })
+    }
+}, { immediate: true })
 
-const setFlyCamera = () => {
-	if (curCamera.value === 'fly') {
-		changeCamera('fly')
-	} else {
-		curCamera.value = 'fly'
-	}
+function clearTimers() {
+    window.clearTimeout(panelTimer)
+    window.clearTimeout(viewTimer)
+}
+onBeforeUnmount(clearTimers)
 
+function changeCamera(mode: CameraMode) {
+    clearTimers()
+    onMessage({ action: 'RemoteSetVisibility', data: mode === 'fly' })
+    if (mode === 'fly') {
+        onMessage({ action: 'CameraHide', data: true })
+        panelTimer = window.setTimeout(() => { showStepCon.value = true }, 500)
+    } else {
+        showStepCon.value = false
+        onMessage({ action: 'SwitchCamera', data: mode === 'free' ? -1 : 1 })
+    }
+}
+watch(curCamera, changeCamera, { flush: 'sync' })
 
-	if (sequenceKeys.value.size > 0 || presetViewKeys.value.size > 0) {
-			const sequenceKeysArray = Array.from(sequenceKeys.value)
-			const presetViewKeysArray = Array.from(presetViewKeys.value)
-			if (
-				counter >=
-				sequenceKeysArray.length + presetViewKeysArray.length
-			) {
-				counter = 0
-			}
+function setFlyCamera() {
+    if (curCamera.value === 'fly') changeCamera('fly')
+    else curCamera.value = 'fly'
 
-			setTimeout(() => {
-				if (counter < presetViewKeysArray.length) {
-					onMessage({
-						action: "SetPresetView",
-						data: presetViewKeysArray[counter],
-					})
-				} else {
-					onMessage({
-						action: "PlaySequence",
-						data: sequenceKeysArray[
-							counter - sequenceKeysArray.length
-						],
-					})
-				}
-				counter = counter + 1
-			}, 1000)
-		}
-};
+    const presets = Array.from(new Set(presetViewKeys()))
+    const sequences = Array.from(new Set(sequenceKeys()))
+    const count = presets.length + sequences.length
+    if (!count) return
+    counter %= count
+    viewTimer = window.setTimeout(() => {
+        if (counter < presets.length) onMessage({ action: 'SetPresetView', data: presets[counter] })
+        else onMessage({ action: 'PlaySequence', data: sequences[counter - presets.length] })
+        counter++
+    }, 1000)
+}
 </script>
 
 <template>
-    <div class="camera_setting">
+    <div class="camera_setting" :class="{ 'move-up': curCamera === 'fly' }">
         <div class="free" :class="curCamera == 'free' ? 'free_sel' : ''" @click="curCamera = 'free'">
 
         </div>
@@ -179,7 +111,7 @@ const setFlyCamera = () => {
 		}
 
 		.free_sel {
-			background: url(/src/assets/images/freeCamera_over.png);
+			background: url(/src/assets/images/freeCamera_active.png);
 			background-size: 100% 100%;
 		}
 
@@ -195,7 +127,7 @@ const setFlyCamera = () => {
 		}
 
 		.fly_sel {
-			background: url(/src/assets/images/flyCamera_over.png);
+			background: url(/src/assets/images/flyCamera_active.png);
 			background-size: 100% 100%;
 		}
 
@@ -211,7 +143,7 @@ const setFlyCamera = () => {
 		}
 
 		.tourist_sel {
-			background: url(/src/assets/images/touristCamera_over.png);
+			background: url(/src/assets/images/touristCamera_active.png);
 			background-size: 100% 100%;
 		}
 

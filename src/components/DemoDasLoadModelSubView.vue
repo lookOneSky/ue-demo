@@ -2,12 +2,10 @@
 import { ref } from 'vue'
 // @ts-ignore
 import { DasLoadModelSubView } from "./lib/Layer/DasLoadModelSubView.js"
-// @ts-ignore
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 
 // 图层状态
 const layerVisible = ref(true)
-const currentLayerId = ref<any>(null)
+const currentLayer = ref<any>(null)
 const isCapturing = ref(false)
 
 // 模型参数
@@ -40,7 +38,8 @@ const createLoadModelLayer = async () => {
         explodeAnimTime: modelParams.value.explodeAnimTime
       }
     })
-    currentLayerId.value = result
+    currentLayer.value = result
+    layerVisible.value = true
     console.log('已创建模型加载器图层:', result)
     await loadAllParams()
   } catch (error) {
@@ -48,21 +47,12 @@ const createLoadModelLayer = async () => {
   }
 }
 
-// 检查图层是否已创建
-const checkLayerExists = () => {
-  if (!currentLayerId.value) {
-    console.warn('请先创建模型加载器图层')
-    return false
-  }
-  return true
-}
-
 // 设置纹理大小
 const setTextureSize = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setTextureSize(modelParams.value.textureWidth, modelParams.value.textureHeight)
+    await currentLayer.value.setTextureSize(modelParams.value.textureWidth, modelParams.value.textureHeight)
     console.log('已设置纹理大小:', modelParams.value.textureWidth, 'x', modelParams.value.textureHeight)
   } catch (error) {
     console.error('设置纹理大小失败:', error)
@@ -72,9 +62,9 @@ const setTextureSize = async () => {
 // 设置纹理偏移
 const setTextureOffset = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setTextureOffset(modelParams.value.offsetX, modelParams.value.offsetY)
+    await currentLayer.value.setTextureOffset(modelParams.value.offsetX, modelParams.value.offsetY)
     console.log('已设置纹理偏移:', modelParams.value.offsetX, modelParams.value.offsetY)
   } catch (error) {
     console.error('设置纹理偏移失败:', error)
@@ -84,9 +74,9 @@ const setTextureOffset = async () => {
 // 设置旋转参数
 const setRotationParams = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setRotationParams(modelParams.value.rotationRadiusScale, modelParams.value.rotationTime)
+    await currentLayer.value.setRotationParams(modelParams.value.rotationRadiusScale, modelParams.value.rotationTime)
     console.log('已设置旋转参数:', {
       rotationRadiusScale: modelParams.value.rotationRadiusScale,
       rotationTime: modelParams.value.rotationTime
@@ -99,9 +89,9 @@ const setRotationParams = async () => {
 // 开始捕获
 const beginCapture = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.beginCapture()
+    await currentLayer.value.beginCapture()
     isCapturing.value = true
     console.log('已开始捕获')
   } catch (error) {
@@ -112,9 +102,9 @@ const beginCapture = async () => {
 // 停止捕获
 const stopCapture = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.stopCapture()
+    await currentLayer.value.stopCapture()
     isCapturing.value = false
     console.log('已停止捕获')
   } catch (error) {
@@ -125,14 +115,14 @@ const stopCapture = async () => {
 // 异步加载模型
 const loadModelAsync = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     if (!modelParams.value.modelName) {
       console.warn('请输入模型名称')
       return
     }
     
-    await currentLayerId.value.loadModelAsync(modelParams.value.modelName)
+    await currentLayer.value.loadModelAsync(modelParams.value.modelName)
     console.log('已加载模型:', modelParams.value.modelName)
   } catch (error) {
     console.error('加载模型失败:', error)
@@ -142,9 +132,9 @@ const loadModelAsync = async () => {
 // 销毁所有模型
 const destroyModels = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.destroyModels()
+    await currentLayer.value.destroyModels()
     console.log('已销毁所有模型')
   } catch (error) {
     console.error('销毁模型失败:', error)
@@ -154,9 +144,9 @@ const destroyModels = async () => {
 // 开始炸开动画
 const startExplode = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.startExplode(modelParams.value.explodeAnimTime)
+    await currentLayer.value.startExplode(modelParams.value.explodeAnimTime)
     console.log('已开始炸开动画，时长:', modelParams.value.explodeAnimTime)
   } catch (error) {
     console.error('开始炸开动画失败:', error)
@@ -166,9 +156,9 @@ const startExplode = async () => {
 // 设置炸开动画时长
 const setExplodeAnimTime = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setExplodeAnimTime(modelParams.value.explodeAnimTime)
+    await currentLayer.value.setExplodeAnimTime(modelParams.value.explodeAnimTime)
     console.log('已设置炸开动画时长:', modelParams.value.explodeAnimTime)
   } catch (error) {
     console.error('设置炸开动画时长失败:', error)
@@ -178,9 +168,9 @@ const setExplodeAnimTime = async () => {
 // 设置旋转半径缩放
 const setRotationRadiusScale = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setRotationRadiusScale(modelParams.value.rotationRadiusScale)
+    await currentLayer.value.setRotationRadiusScale(modelParams.value.rotationRadiusScale)
     console.log('已设置旋转半径缩放:', modelParams.value.rotationRadiusScale)
   } catch (error) {
     console.error('设置旋转半径缩放失败:', error)
@@ -190,9 +180,9 @@ const setRotationRadiusScale = async () => {
 // 设置旋转时间
 const setRotationTime = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setRotationTime(modelParams.value.rotationTime)
+    await currentLayer.value.setRotationTime(modelParams.value.rotationTime)
     console.log('已设置旋转时间:', modelParams.value.rotationTime)
   } catch (error) {
     console.error('设置旋转时间失败:', error)
@@ -202,9 +192,9 @@ const setRotationTime = async () => {
 // 设置旋转俯仰角
 const setRotationPitch = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setRotationPitch(modelParams.value.rotationPitch)
+    await currentLayer.value.setRotationPitch(modelParams.value.rotationPitch)
     console.log('已设置旋转俯仰角:', modelParams.value.rotationPitch)
   } catch (error) {
     console.error('设置旋转俯仰角失败:', error)
@@ -214,9 +204,9 @@ const setRotationPitch = async () => {
 // 设置视口参数
 const setViewportParams = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setViewportParams(
+    await currentLayer.value.setViewportParams(
       modelParams.value.textureWidth,
       modelParams.value.textureHeight,
       modelParams.value.offsetX,
@@ -236,9 +226,9 @@ const setViewportParams = async () => {
 // 获取所有参数
 const loadAllParams = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const allParams = await currentLayerId.value.getAll()
+    const allParams = await currentLayer.value.getAll()
     console.log('已获取所有参数:', allParams)
     
     // 更新界面参数
@@ -262,7 +252,7 @@ const loadAllParams = async () => {
 // 更新所有参数
 const updateAllParams = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     const params = {
       explodeAnimTime: modelParams.value.explodeAnimTime,
@@ -275,7 +265,7 @@ const updateAllParams = async () => {
       offsetY: modelParams.value.offsetY
     }
     
-    await currentLayerId.value.updateAll(params)
+    await currentLayer.value.updateAll(params)
     console.log('已更新所有参数:', params)
   } catch (error) {
     console.error('更新所有参数失败:', error)
@@ -285,13 +275,9 @@ const updateAllParams = async () => {
 // 定位图层
 const locateLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    const allLayers = await pRoot.getAllLayer()
-    if (allLayers && allLayers.length > 0) {
-      await allLayers[0].flyToThis()
-    }
+    await currentLayer.value.flyToThis()
   } catch (error) {
     console.error('定位图层失败:', error)
   }
@@ -300,11 +286,11 @@ const locateLayer = async () => {
 // 显隐图层
 const toggleLayerVisibility = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    layerVisible.value = !layerVisible.value
-    await pRoot.setVisible(layerVisible.value)
+    const visible = !layerVisible.value
+    await currentLayer.value.setVisible(visible)
+    layerVisible.value = visible
   } catch (error) {
     console.error('切换图层可见性失败:', error)
   }
@@ -313,11 +299,11 @@ const toggleLayerVisibility = async () => {
 // 删除图层
 const deleteLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
-    currentLayerId.value = null
+    await currentLayer.value.removeInstance()
+    layerVisible.value = true
+    currentLayer.value = null
     isCapturing.value = false
   } catch (error) {
     console.error('删除图层失败:', error)
@@ -342,11 +328,12 @@ const deleteLayer = async () => {
           创建模型加载器图层
         </el-button>
         
+        <el-button :disabled="!currentLayer" @click="locateLayer">定位图层</el-button>
         <el-button 
           :type="layerVisible ? 'warning' : 'success'" 
           @click="toggleLayerVisibility"
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           {{ layerVisible ? '隐藏图层' : '显示图层' }}
         </el-button>
         
@@ -354,7 +341,7 @@ const deleteLayer = async () => {
           type="danger" 
           @click="deleteLayer"
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           删除图层
         </el-button>
       </div>
@@ -368,7 +355,7 @@ const deleteLayer = async () => {
         <el-button 
           :type="isCapturing ? 'danger' : 'success'" 
           @click="isCapturing ? stopCapture() : beginCapture()"
-          :disabled="!currentLayerId"
+          :disabled="!currentLayer"
           style="margin: 5px;">
           {{ isCapturing ? '停止捕获' : '开始捕获' }}
         </el-button>
@@ -397,7 +384,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="loadModelAsync" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId || !modelParams.modelName">
+          :disabled="!currentLayer || !modelParams.modelName">
           加载模型
         </el-button>
       </el-form-item>
@@ -406,7 +393,7 @@ const deleteLayer = async () => {
         <el-button 
           type="danger" 
           @click="destroyModels"
-          :disabled="!currentLayerId"
+          :disabled="!currentLayer"
           style="margin: 5px;">
           销毁所有模型
         </el-button>
@@ -414,7 +401,7 @@ const deleteLayer = async () => {
         <el-button 
           type="warning" 
           @click="startExplode"
-          :disabled="!currentLayerId"
+          :disabled="!currentLayer"
           style="margin: 5px;">
           开始炸开动画
         </el-button>
@@ -438,7 +425,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setTextureSize" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用尺寸
         </el-button>
       </el-form-item>
@@ -464,7 +451,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setTextureOffset" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用偏移
         </el-button>
       </el-form-item>
@@ -481,7 +468,7 @@ const deleteLayer = async () => {
         type="primary" 
         @click="setViewportParams" 
         style="margin: 15px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         设置视口参数
       </el-button>
     </div>
@@ -504,7 +491,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setRotationRadiusScale" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -522,7 +509,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setRotationTime" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -540,7 +527,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setRotationPitch" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -549,7 +536,7 @@ const deleteLayer = async () => {
         type="primary" 
         @click="setRotationParams" 
         style="margin: 15px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         设置旋转参数
       </el-button>
     </div>
@@ -572,7 +559,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setExplodeAnimTime" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -587,7 +574,7 @@ const deleteLayer = async () => {
           type="primary" 
           @click="loadAllParams" 
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           获取所有参数
         </el-button>
         
@@ -595,7 +582,7 @@ const deleteLayer = async () => {
           type="success" 
           @click="updateAllParams" 
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           更新所有参数
         </el-button>
       </div>
@@ -603,7 +590,7 @@ const deleteLayer = async () => {
 
     <!-- 状态提示 -->
     <div class="status-panel" :class="{ 'active': isCapturing }">
-      <p v-if="currentLayerId">当前图层ID: {{ currentLayerId.id }}</p>
+      <p v-if="currentLayer">当前图层ID: {{ currentLayer.id }}</p>
       <p v-else>未创建图层</p>
       <p>捕获状态: {{ isCapturing ? '正在捕获' : '未捕获' }}</p>
       <p>纹理尺寸: {{ modelParams.textureWidth }} x {{ modelParams.textureHeight }}</p>

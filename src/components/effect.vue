@@ -2,7 +2,7 @@
 import { ref } from 'vue'
 import { LevelSequenceControl } from './lib/Scene/LevelSequenceControl.js'; // 导入序列控制
 
-defineProps<{ msg: string }>()
+defineProps<{ msg?: string }>()
 const form1 = ref({ one: false, two: false, three: false, });
 
 const handleEffectOneChange = (value: boolean) => {
@@ -23,8 +23,7 @@ const sequencePath = "/Game/C_WDS/WDS_Video/Z_Video/Z_Video_A1.Z_Video_A1";
 const playbackStatus = ref({
   state: "unknown",
   currentTime: 0,
-  duration: 0,
-  progress: 0
+  duration: 0
 });
 
 // 设置序列
@@ -35,7 +34,7 @@ const handleSetSequence = async () => {
 
 // 播放序列
 const handlePlaySequence = async () => {
-  const result = await LevelSequenceControl.playSequence(true, 1.0);
+  const result = await LevelSequenceControl.playSequence(true);
   console.log('播放序列结果:', result);
 };
 
@@ -101,7 +100,7 @@ const handleGetStatus = async () => {
           <p style="color: #e1bb82;">状态: {{ playbackStatus.state }}</p>
           <p style="color: #e1bb82;">当前时间: {{ playbackStatus.currentTime.toFixed(2) }}秒</p>
           <p style="color: #e1bb82;">总时长: {{ playbackStatus.duration.toFixed(2) }}秒</p>
-          <p style="color: #e1bb82;">进度: {{ (playbackStatus.progress * 100).toFixed(2) }}%</p>
+          <p style="color: #e1bb82;">进度: {{ (playbackStatus.duration > 0 ? playbackStatus.currentTime / playbackStatus.duration * 100 : 0).toFixed(2) }}%</p>
         </div>
     </div>
 </template>

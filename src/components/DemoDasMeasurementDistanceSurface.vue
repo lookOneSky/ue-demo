@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementDistanceSurface } from './lib/Tool/DasToolMeasurementDistanceSurface.js'
 
@@ -56,12 +57,14 @@ const clearPoints = async () => {
 // 表面测量：触发计算后读取结果
 const calcSurfaceDistance = async () => {
   surfaceLoading.value = true
-  await tool.calcSurfaceDistance(async () => {
+  try {
+    await tool.calcSurfaceDistance()
     await tool.getSurfaceResult((result: any) => {
       surfaceResult.value = result || null
-      surfaceLoading.value = false
     })
-  })
+  } finally {
+    surfaceLoading.value = false
+  }
 }
 
 // 清空表面测量结果与描边折线
@@ -85,6 +88,9 @@ const loadStyle = async () => {
   await tool.getSampleDistance((result: any) => { surfaceStyle.sampleDistanceM = result?.sampleDistanceM ?? surfaceStyle.sampleDistanceM })
   await tool.getShowSurfaceLine((result: any) => { surfaceStyle.showSurfaceLine = result?.showSurfaceLine ?? surfaceStyle.showSurfaceLine })
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return tool.finishTool()
+})
 </script>
 
 <template>

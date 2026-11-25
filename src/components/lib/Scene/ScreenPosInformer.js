@@ -1,4 +1,4 @@
-import { ExcuteUEFun } from "../ExcuteUEFun.js";
+import { ExcuteUEFun, isUESuccess } from "../ExcuteUEFun.js";
 
 /**
  * ScreenPosInformer 类
@@ -8,82 +8,57 @@ import { ExcuteUEFun } from "../ExcuteUEFun.js";
 class ScreenPosInformer {
     static className = "ScreenPosInformer";
 
-    // 存储屏幕位置变化的回调函数
-    static onScreenPositionsChangedCallbacks = [];
-
-    //static map mapString2Callback
-    static mapString2Callback = new Map();
-    static mapString2PointInfo = new Map();
-    static bIsRequesting = false;
-
-    //是否创建监听
-    static bCreateListener = false;
+    static listeners = new WeakMap();
 
     /**
-     * 添加屏幕位置变化事件监听器
-     * @param {function} callback - 回调函数，参数为变化的点位数组，每个点位包含 
-     *                             {pointId: string, screenPos: {X: number, Y: number}, isVisible: boolean}
-     * @returns {function} 返回一个取消监听的函数
+     * 监听指定点位的 UE 视口像素坐标。用最新视频帧合并同一点位的更新。
+     * @param {string} pointId
+     * @param {(point: {pointId:string, screenPos:number[], isVisible?:boolean}) => void} callback
+     * @returns {() => void} 取消此点位的监听
      */
-    static addScreenPositionsChangedListener(strID, callback) {
-        ScreenPosInformer.mapString2Callback.set(strID, callback);
-
-        if (!ScreenPosInformer.bCreateListener) {
-            ScreenPosInformer.bCreateListener = true;
-            window.viewer.addResponseEventListener(ScreenPosInformer.className, (json) => {
-                //if (ScreenPosInformer.bIsRequesting)
-                //    return;
-
-                console.log("bIsRequesting is false");
-
-                //json string to obj
-                let obj = JSON.parse(json);
-
-                if (obj.class == ScreenPosInformer.className) {
-                    if (obj.function != "emitMessage")
-                        return;
-
-                    //points 是数组
-                    let objPoints = JSON.parse(obj.message);
-                    const points = objPoints.points.map(point => ({
-                        pointId: point.pointId,
-                        screenPos: point.screenPos,
-                        isVisible: point.isVisible !== undefined ? point.isVisible : true
-                    }));
-
-                    ScreenPosInformer.mapString2PointInfo.clear();
-                    for (const point of points) {
-                        ScreenPosInformer.mapString2PointInfo.set(point.pointId, point);
-                    }
-
-                    // 监听视频帧
-                    function onFrame(now, metadata) {
-                        //连续请求，连续返回，只执行一次
-                        if (!ScreenPosInformer.bIsRequesting)
-                            return;
-
-                        for (const point of ScreenPosInformer.mapString2PointInfo.values()) {
-                            //延迟到帧更新的时候刷新位置
-                            const callback = ScreenPosInformer.mapString2Callback.get(point.pointId);
-                            if (callback) {
-                                callback(point);
-                            }
-                        }
-                        ScreenPosInformer.bIsRequesting = false;
-                    }
-
-                    const video = document.querySelector('#streamingVideo');
-                    video.requestVideoFrameCallback(onFrame);
-                    ScreenPosInformer.bIsRequesting = true;
+    static addScreenPositionsChangedListener(pointId, callback) {
+        const viewer = window.viewer;
+        let state = ScreenPosInformer.listeners.get(viewer);
+        if (!state) {
+            state = { callbacks: new Map(), points: new Map(), scheduled: false };
+            ScreenPosInformer.listeners.set(viewer, state);
+            function deliver() {
+                state.scheduled = false;
+                for (const point of state.points.values()) {
+                    state.callbacks.get(point.pointId)?.(point);
                 }
+                state.points.clear();
+            }
+            viewer.addResponseEventListener(ScreenPosInformer.className, raw => {
+                let points;
+                try {
+                    const event = JSON.parse(raw);
+                    if (event.class !== ScreenPosInformer.className || event.function !== "emitMessage" ||
+                        event.messageName !== "screenPositionsChanged") return;
+                    points = JSON.parse(event.message).points;
+                } catch { return; }
+                if (!Array.isArray(points)) return;
+                for (const point of points) {
+                    if (state.callbacks.has(point?.pointId) && Array.isArray(point.screenPos) &&
+                        point.screenPos.length >= 2 && point.screenPos.every(Number.isFinite)) {
+                        state.points.set(point.pointId, { ...point, isVisible: point.isVisible ?? true });
+                    }
+                }
+                if (state.scheduled || !state.points.size) return;
+                state.scheduled = true;
+                const video = document.querySelector('#streamingVideo');
+                if (video?.requestVideoFrameCallback) video.requestVideoFrameCallback(deliver);
+                else requestAnimationFrame(deliver);
             });
         }
-
-        // 返回取消监听的函数
-        return function () {
-            const index = ScreenPosInformer.onScreenPositionsChangedCallbacks.indexOf(callback);
-            if (index !== -1) {
-                ScreenPosInformer.onScreenPositionsChangedCallbacks.splice(index, 1);
+        state.callbacks.set(pointId, callback);
+        return () => {
+            if (state.callbacks.get(pointId) !== callback) return;
+            state.callbacks.delete(pointId);
+            state.points.delete(pointId);
+            if (!state.callbacks.size) {
+                viewer.removeResponseEventListener(ScreenPosInformer.className);
+                ScreenPosInformer.listeners.delete(viewer);
             }
         };
     }
@@ -112,7 +87,7 @@ class ScreenPosInformer {
     static async RemovePoint(pointId) {
         let param = { pointId: pointId };
         const result = await ExcuteUEFun.excuteUEFunction(ScreenPosInformer.className, "RemovePoint", param);
-        return result.success === undefined ? true : result.success;
+        return isUESuccess(result);
     }
 
     /**
@@ -121,8 +96,8 @@ class ScreenPosInformer {
      */
     static async ClearAllPoints() {
         const result = await ExcuteUEFun.excuteUEFunction(ScreenPosInformer.className, "ClearAllPoints", {});
-        return result.success === undefined ? true : result.success;
+        return isUESuccess(result);
     }
 }
 
-export { ScreenPosInformer }; 
+export { ScreenPosInformer };

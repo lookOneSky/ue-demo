@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
-defineProps<{ msg: string }>()
-const form3 = ref({ delivery: 1, sewen: 20, yunying: false });
-const form1 = ref({ delivery: false, aa: false });
-const form2 = ref({ delivery: 1, ruihua: 1, xuanran: 100 });
+defineProps<{ msg?: string }>()
+const form3 = ref({ delivery: true, lutIntensity: 1, sewen: 20, yunying: 0 });
+const form1 = ref({ delivery: false, aa: false, showFrameRate: false });
+const form2 = ref({ delivery: true, dlss: true, ruihua: 1, xuanran: 100 });
 </script>
 
 <template>
@@ -23,7 +23,7 @@ const form2 = ref({ delivery: 1, ruihua: 1, xuanran: 100 });
                     active-color="#E1BB82"></el-switch>
             </el-form-item>
             <el-form-item label="显示帧率">
-                <el-switch v-model="form1.delivery" active-text="ON" inactive-text="OFF"
+                <el-switch v-model="form1.showFrameRate" active-text="ON" inactive-text="OFF"
                     active-color="#E1BB82"></el-switch>
             </el-form-item>
         </el-form>
@@ -44,7 +44,7 @@ const form2 = ref({ delivery: 1, ruihua: 1, xuanran: 100 });
                 </el-radio-group>
             </el-form-item>
             <el-form-item label="DLSS">
-                <el-switch v-model="form2.delivery" active-text="ON" inactive-text="OFF" style="margin-left: 160px;"
+                <el-switch v-model="form2.dlss" active-text="ON" inactive-text="OFF" style="margin-left: 160px;"
                     active-color="#E1BB82"></el-switch>
             </el-form-item>
             <el-form-item label="渲染分辨率">
@@ -65,7 +65,7 @@ const form2 = ref({ delivery: 1, ruihua: 1, xuanran: 100 });
                     active-color="#E1BB82"></el-switch>
             </el-form-item>
             <el-form-item label="LUT强度">
-                <el-radio-group v-model="form3.ruihua" style="margin-left: 70px;">
+                <el-radio-group v-model="form3.lutIntensity" style="margin-left: 70px;">
                     <el-radio-button :label="1">1</el-radio-button>
                     <el-radio-button :label="2">2</el-radio-button>
                 </el-radio-group>

@@ -1,4 +1,4 @@
-import { ExcuteUEFun } from "../ExcuteUEFun.js";
+import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
 
 class DasElectron {
     static className = "DasElectron";
@@ -61,10 +61,10 @@ class DasElectron {
         if (DasElectron._listeningViewer === window.viewer) return;
         DasElectron._listeningViewer = window.viewer;
         window.viewer.addResponseEventListener(DasElectron.className, (json) => {
-            const obj = JSON.parse(json);
+            const obj = parseUEMessage(json);
             if (obj.class !== DasElectron.className || obj.function !== 'emitMessage') return;
             if (obj.messageName === 'IsPassThroughByCommand') {
-                const data = JSON.parse(obj.message);
+                const data = parseUEMessage(obj.message);
                 DasElectron.SetElectronCheckMousePassThrough(data.IsPassThroughByCommand);
             }
         });

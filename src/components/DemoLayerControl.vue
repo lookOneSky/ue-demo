@@ -1,10 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { inject, ref, onBeforeUnmount, onMounted } from 'vue'
+import { Loading } from '@element-plus/icons-vue'
+import { DasLayerBase } from './lib/Layer/DasLayerBase.js'
 import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
 
 // 图层列表
-const layerList = ref([])
+interface LayerInfo {
+  index: number
+  layer: DasLayerBase
+  id: string
+  name: string
+  className: string
+  visible: boolean
+  highlight: boolean
+  outline: boolean
+  distanceVisible: boolean
+  visibleConfig: { maxVisibleDistance: number; minVisibleDistance: number }
+}
+
+const layerList = ref<LayerInfo[]>([])
 const isLoading = ref(false)
+let active = true
+onBeforeUnmount(() => { active = false })
 
 // 可见距离设置
 const visibleDistanceConfig = ref({
@@ -15,30 +32,26 @@ const visibleDistanceConfig = ref({
 
 // 获取所有图层
 const getAllLayers = async () => {
+  if (isLoading.value) return
   isLoading.value = true
   try {
     const pRoot = await DasGroupLayer.getRoot()
+    if (!active) return
     const allLayers = await pRoot.getAllLayer()
     
     layerList.value = []
     
     if (allLayers && allLayers.length > 0) {
       for (let i = 0; i < allLayers.length; i++) {
+        if (!active) return
         const layer = allLayers[i]
         try {
-          const layerInfo = {
-            index: i,
-            layer: layer,
-            id: await layer.getID(),
-            name: await layer.getName() || `图层_${i}`,
-            className: await layer.requestClassName(),
-            visible: await layer.isVisible(),
-            highlight: await layer.isHightLight(),
-            outline: await layer.isOutline(),
-            distanceVisible: await layer.isDistanceVisibleEnable(),
-            visibleConfig: await layer.getVisibleDistanceConfig()
-          }
-          layerList.value.push(layerInfo)
+          const [id, name, className, visible, highlight, outline, distanceVisible, visibleConfig] = await Promise.all([
+            layer.getID(), layer.getName(), layer.requestClassName(), layer.isVisible(), layer.isHightLight(),
+            layer.isOutline(), layer.isDistanceVisibleEnable(), layer.getVisibleDistanceConfig(),
+          ])
+          layerList.value.push({ index: i, layer, id, name: name || `图层_${i}`, className, visible,
+            highlight, outline, distanceVisible, visibleConfig })
         } catch (error) {
           console.error(`获取图层 ${i} 信息失败:`, error)
           layerList.value.push({
@@ -66,7 +79,7 @@ const getAllLayers = async () => {
 }
 
 // 设置单个图层可见距离
-const setLayerVisibleDistance = async (layerInfo, config) => {
+const setLayerVisibleDistance = async (layerInfo: LayerInfo, config: typeof visibleDistanceConfig.value) => {
   try {
     await layerInfo.layer.setVisibleDistance(
       config.distanceVisibleEnable,
@@ -110,7 +123,7 @@ const setAllLayersVisibleDistance = async () => {
 }
 
 // 设置单个图层可见性
-const toggleLayerVisible = async (layerInfo) => {
+const toggleLayerVisible = async (layerInfo: LayerInfo) => {
   try {
     const newVisible = !layerInfo.visible
     await layerInfo.layer.setVisible(newVisible)
@@ -122,7 +135,7 @@ const toggleLayerVisible = async (layerInfo) => {
 }
 
 // 定位到图层
-const flyToLayer = async (layerInfo) => {
+const flyToLayer = async (layerInfo: LayerInfo) => {
   try {
     await layerInfo.layer.flyToThis()
     console.log(`已定位到图层: ${layerInfo.name}`)
@@ -132,12 +145,12 @@ const flyToLayer = async (layerInfo) => {
 }
 
 // 批量设置图层状态
-const batchSetLayerState = async (property, value) => {
+const batchSetLayerState = async (property: 'visible' | 'highlight' | 'outline', value: boolean) => {
   if (!layerList.value.length) return
   
   isLoading.value = true
   try {
-    const promises = layerList.value.map(async (layerInfo) => {
+    const promises = layerList.value.map(async (layerInfo: LayerInfo) => {
       try {
         switch (property) {
           case 'visible':
@@ -167,7 +180,9 @@ const batchSetLayerState = async (property, value) => {
   }
 }
 
+const getShareData = inject<(key: string) => unknown>('getShareData')!
 onMounted(() => {
+  if (!getShareData('viewerReady')) return
   getAllLayers()
 })
 </script>
@@ -216,6 +231,7 @@ onMounted(() => {
         
         <el-form-item label="最大可见距离" class="ruihua">
           <el-input-number 
+            :min="visibleDistanceConfig.minVisibleDistance"
             v-model="visibleDistanceConfig.maxVisibleDistance" 
             style="width: 150px;">
           </el-input-number>
@@ -225,7 +241,7 @@ onMounted(() => {
           <el-input-number 
             v-model="visibleDistanceConfig.minVisibleDistance" 
             :min="0" 
-            :max="50000" 
+            :max="visibleDistanceConfig.maxVisibleDistance"
             :step="100"
             style="width: 150px;">
           </el-input-number>
@@ -469,4 +485,4 @@ onMounted(() => {
     font-size: 18px;
   }
 }
-</style> 
+</style>

@@ -49,8 +49,7 @@ class DasPointsLayer extends DasLayerBase {
      * @returns {Promise<boolean>} - 成功结果
      */
     setPointInfo = async function (pointInfo) {
-        const param = { pointInfo: pointInfo };
-        return await this.excuteUEClassFunction("setPointInfo", param);
+        return await this.excuteUEClassFunction("setPointInfo", { pointInfo, ...pointInfo });
     }
 
     /**
@@ -193,13 +192,21 @@ class DasPointsLayer extends DasLayerBase {
      * @param {Object} param - 创建参数
      * @param {Object} [param.param] - 图层的初始配置
      * @param {Array} [param.param.points] - [经度, 纬度, 高度]数组的数组
+     * @param {number[]} [param.param.posLLH] - 单个点的[经度, 纬度, 高度]
      * @param {string} [param.param.texturePath] - 纹理路径
-     * @param {Object} [param.param.pointInfo] - 点位外观配置
+     * @param {Object} [param.param.pointInfo] - 点位尺寸、颜色和偏移的组合配置
+     * @param {number[]} [param.param.pointSize] - 点位宽度和高度
+     * @param {number[]} [param.param.color] - RGBA 颜色
+     * @param {number[]} [param.param.offset] - 点位显示偏移
+     * @param {boolean} [param.param.enableDepthTest] - 是否启用深度测试
      * @param {boolean} [param.param.autoScale] - 是否启用自动缩放
      * @param {boolean} [param.param.IsSpread] - 是否启用扩散
      * @returns {Promise<DasPointsLayer>} - 新的点位图层实例
      */
     static async createInstance(param) {
+        if (param?.param?.pointInfo) {
+            param = { ...param, param: { ...param.param.pointInfo, ...param.param } };
+        }
         let pointsLayer = null;
         await ExcuteUEFun.excuteUEFunction("DasPointsLayer", "createInstance", param,
             function (json) {

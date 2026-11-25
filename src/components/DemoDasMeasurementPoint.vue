@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { inject, ref, onMounted, onBeforeUnmount } from 'vue'
 import { DasToolMeasurementPoint } from './lib/Tool/DasToolMeasurementPoint.js'
 
 const tool = new DasToolMeasurementPoint()
@@ -7,14 +8,17 @@ const isToolActive = ref(false)
 const currentPoint = ref<any>(null)
 const pointsList = ref<any[]>([])
 
+const getShareData = inject<(key: string) => unknown>('getShareData')
 onMounted(() => {
+  if (!getShareData?.('viewerReady')) return
   tool.addCallBack((obj: any) => {
-    currentPoint.value = obj
+    if (![obj.longitude, obj.latitude, obj.height].every(Number.isFinite)) return
+    currentPoint.value = obj.longitude || obj.latitude || obj.height ? obj : null
   })
 })
 
 onBeforeUnmount(() => {
-  tool.removeCallBack()
+  if (window.viewer) tool.removeCallBack()
 })
 
 const startTool = async () => {
@@ -41,6 +45,9 @@ const clearPoints = async () => {
     currentPoint.value = null
   })
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return tool.finishTool()
+})
 </script>
 
 <template>
@@ -61,7 +68,7 @@ const clearPoints = async () => {
 
     <div class="status-panel" :class="{ active: isToolActive }">
       <p>状态：{{ isToolActive ? '已激活（左键拾取点）' : '未激活' }}</p>
-      <template v-if="currentPoint && currentPoint.longitude !== 0">
+      <template v-if="currentPoint">
         <p>当前点：</p>
         <p>经度：{{ currentPoint.longitude }}</p>
         <p>纬度：{{ currentPoint.latitude }}</p>

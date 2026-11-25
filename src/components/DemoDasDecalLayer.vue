@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasDecalLayer } from "./lib/Layer/DasDecalLayer.js"
 import { DasPolylineTool } from "./lib/Tool/DasPolylineTool.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 import { ElMessage } from 'element-plus'
 
 // 当前贴花图层
 const currentDecalLayer = ref<any>(null)
+const createdLayers = new Set<DasDecalLayer>()
+
 const isDrawMode = ref(false)
 const uploadedImageBase64 = ref<string>('')
 const imagePreview = ref<string>('')
@@ -23,15 +25,15 @@ const decalParams = reactive({
 const startDrawTool = async () => {
   try {
     // 清空之前的点
-    DasPolylineTool.clearPoints()
+    await DasPolylineTool.clearPoints()
 
     // 设置线条样式
-    DasPolylineTool.setLineColor([1, 0, 0, 1]) // 红色
-    DasPolylineTool.setLineThickness(2, true)
-    DasPolylineTool.setLineVisible(true)
+    await DasPolylineTool.setLineColor([1, 0, 0, 1]) // 红色
+    await DasPolylineTool.setLineThickness(2, true)
+    await DasPolylineTool.setLineVisible(true)
 
     // 设置为当前工具
-    DasPolylineTool.setToCurrent()
+    await DasPolylineTool.setToCurrent()
 
     isDrawMode.value = true
     ElMessage.success('绘制模式已启动，在场景中绘制矩形区域（需要2个点）')
@@ -91,6 +93,8 @@ const createFromDrawnPoints = async () => {
     }
 
     const decalLayer = await DasDecalLayer.createInstance(params)
+    if (!decalLayer) return
+    createdLayers.add(decalLayer)
     currentDecalLayer.value = decalLayer
 
     // 停止绘制模式
@@ -227,9 +231,10 @@ const clearAll = async () => {
       await stopDrawTool()
     }
 
-    // 删除所有图层
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
+    for (const layer of [...createdLayers].reverse()) {
+      await layer.removeInstance()
+      createdLayers.delete(layer)
+    }
 
     // 清空工具点
     await DasPolylineTool.clearPoints()
@@ -248,6 +253,9 @@ const clearAll = async () => {
     ElMessage.error('清空失败')
   }
 }
+onViewerSessionLeave(() => {
+  if (isDrawMode.value) return DasPolylineTool.finishTool()
+})
 </script>
 
 <template>
@@ -369,7 +377,7 @@ const clearAll = async () => {
         type="danger"
         @click="clearAll"
         style="margin: 10px;">
-        清空所有
+        清空本示例
       </el-button>
     </div>
 

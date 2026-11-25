@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onBeforeUnmount } from 'vue'
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { ref } from 'vue'
 import { DasClipPlanes } from './lib/Scene/DasClipPlanes.js'
 import { DasClipPlaneTool } from './lib/Tool/DasClipPlaneTool.js'
 
@@ -109,8 +110,8 @@ const queryClipEnable = async () => {
 }
 
 // 卸载时停止取点工具（切换 Tab 时组件会被 v-if 卸载）
-onBeforeUnmount(() => {
-  if (isToolActive.value) tool.finishTool()
+onViewerSessionLeave(async () => {
+  if (isToolActive.value) await tool.finishTool()
 })
 </script>
 

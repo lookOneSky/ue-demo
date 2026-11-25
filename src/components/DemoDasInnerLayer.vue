@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-// @ts-ignore
+import { ref } from 'vue'
 import {DasInnerLayer} from './lib/Layer/DasInnerLayer.js'
-// @ts-ignore
-import {DasGroupLayer} from './lib/Layer/DasGroupLayer.js'
 
 // 图层相关状态
 const layerVisible = ref(true)
 const currentLayerId = ref('')
-const layers = ref<any[]>([])
-const selectedLayer = ref<any>(null)
+const layers = ref<{ layer: DasInnerLayer; tagName: string; visible: boolean }[]>([])
+const selectedLayer = ref<DasInnerLayer | null>(null)
+const selectedTagName = ref('')
 
 // TagName选项列表
 const tagNameOptions = [
@@ -32,28 +30,14 @@ const createInnerLayer = async () => {
     
     const layer = await DasInnerLayer.createInstance(param)
     if (layer) {
-      await refreshLayerList()
-      currentLayerId.value = layer.id
-      selectedLayer.value = layer
+      if (!layers.value.some(item => item.layer.id === layer.id)) {
+        layers.value.push({ layer, tagName: param.TagName, visible: true })
+      }
+      await selectLayer(layer, param.TagName)
       console.log('内部图层创建成功:', layer)
     }
   } catch (error) {
     console.error('创建内部图层失败:', error)
-  }
-}
-
-// 删除图层
-const deleteLayer = async () => {
-  if (!selectedLayer.value) return
-  
-  try {
-    // 这里应该调用删除接口，暂时从列表中移除
-    layers.value = layers.value.filter(layer => layer.id !== selectedLayer.value.id)
-    selectedLayer.value = null
-    currentLayerId.value = ''
-    console.log('图层删除成功')
-  } catch (error) {
-    console.error('删除图层失败:', error)
   }
 }
 
@@ -62,8 +46,12 @@ const toggleLayerVisibility = async () => {
   if (!selectedLayer.value) return
   
   try {
-    layerVisible.value = !layerVisible.value
-    await selectedLayer.value.setVisible(layerVisible.value)
+    const layer = selectedLayer.value
+    const visible = !layerVisible.value
+    await layer.setVisible(visible)
+    const entry = layers.value.find(item => item.layer.id === layer.id)
+    if (entry) entry.visible = visible
+    if (selectedLayer.value?.id === layer.id) layerVisible.value = visible
     console.log('图层可见性已更新:', layerVisible.value)
   } catch (error) {
     console.error('设置图层可见性失败:', error)
@@ -82,61 +70,24 @@ const flyToLayer = async () => {
   }
 }
 
-// 设置高亮
-const toggleHighlight = async () => {
-  if (!selectedLayer.value) return
-  
-  try {
-    const currentHighlight = await selectedLayer.value.isHightLight()
-    await selectedLayer.value.setHightLight(!currentHighlight)
-    console.log('高亮状态已切换:', !currentHighlight)
-  } catch (error) {
-    console.error('设置高亮失败:', error)
-  }
-}
-
-// 设置轮廓
-const toggleOutline = async () => {
-  if (!selectedLayer.value) return
-  
-  try {
-    const currentOutline = await selectedLayer.value.isOutline()
-    await selectedLayer.value.setOutline(!currentOutline)
-    console.log('轮廓状态已切换:', !currentOutline)
-  } catch (error) {
-    console.error('设置轮廓失败:', error)
-  }
-}
-
-// 刷新图层列表
-const refreshLayerList = async () => {
-//   try {
-//     const allLayers = await DasGroupLayer.getAllInnerLayers()
-//     layers.value = allLayers
-//     console.log('图层列表已刷新:', allLayers)
-//   } catch (error) {
-//     console.error('获取图层列表失败:', error)
-//   }
-}
-
 // 选择图层
-const selectLayer = async (layer: any) => {
+const selectLayer = async (layer: DasInnerLayer, tagName: string) => {
+  selectedTagName.value = tagName
   selectedLayer.value = layer
   currentLayerId.value = layer.id
   
   // 获取图层当前可见性
   try {
-    layerVisible.value = await layer.isVisible()
+    const visible = await layer.isVisible()
+    const entry = layers.value.find(item => item.layer.id === layer.id)
+    if (entry) entry.visible = visible
+    if (selectedLayer.value?.id === layer.id) layerVisible.value = visible
     console.log('已选择图层:', layer)
   } catch (error) {
     console.error('获取图层属性失败:', error)
   }
 }
 
-// 组件挂载时初始化
-onMounted(() => {
-  refreshLayerList()
-})
 </script>
 
 <template>
@@ -172,28 +123,20 @@ onMounted(() => {
             </el-button>
           </div>
 
-          <div class="action-row">
-            <!-- <el-button @click="refreshLayerList" type="info" class="action-btn">
-              刷新列表
-            </el-button>
-            <el-button @click="deleteLayer" type="danger" class="action-btn" :disabled="!selectedLayer">
-              删除图层
-            </el-button> -->
-          </div>
 
           <div class="layer-list" v-if="layers.length > 0">
             <div class="list-header">图层列表 ({{ layers.length }})</div>
             <div 
-              v-for="layer in layers" 
-              :key="layer.id" 
+              v-for="entry in layers"
+              :key="entry.layer.id"
               class="layer-item"
-              :class="{ active: currentLayerId === layer.id }"
-              @click="selectLayer(layer)"
+              :class="{ active: currentLayerId === entry.layer.id }"
+              @click="selectLayer(entry.layer, entry.tagName)"
             >
               <span class="layer-icon">🔲</span>
-              <span class="layer-name">图层 {{ layer.id }}</span>
-              <span class="layer-status" :class="{ visible: layerVisible }">
-                {{ layerVisible ? '👁️' : '🙈' }}
+              <span class="layer-name">{{ entry.tagName }} · {{ entry.layer.id }}</span>
+              <span class="layer-status" :class="{ visible: entry.visible }">
+                {{ entry.visible ? '👁️' : '🙈' }}
               </span>
             </div>
           </div>
@@ -219,17 +162,6 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- <div class="control-group">
-            <div class="group-title">视觉效果</div>
-            <div class="control-row">
-              <el-button @click="toggleHighlight" type="warning" class="control-btn">
-                切换高亮
-              </el-button>
-              <el-button @click="toggleOutline" type="primary" class="control-btn">
-                切换轮廓
-              </el-button>
-            </div>
-          </div> -->
         </div>
       </div>
 
@@ -247,7 +179,7 @@ onMounted(() => {
           </div>
           <div class="info-row">
             <span class="info-label">TagName：</span>
-            <span class="info-value">{{ createParams.TagName }}</span>
+            <span class="info-value">{{ selectedTagName }}</span>
           </div>
           <div class="info-row">
             <span class="info-label">可见性：</span>
@@ -704,4 +636,4 @@ onMounted(() => {
     color: rgba(255, 255, 255, 0.4);
   }
 }
-</style> 
+</style>

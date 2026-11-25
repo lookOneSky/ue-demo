@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementArea } from './lib/Tool/DasToolMeasurementArea.js'
 
@@ -53,12 +54,14 @@ const clearPoints = async () => {
 
 const calcAreaAccurate = async () => {
   accurateLoading.value = true
-  await tool.calcAreaAccurate(async () => {
+  try {
+    await tool.calcAreaAccurate()
     await tool.getAccurateResult((result: any) => {
       accurateResult.value = result || null
-      accurateLoading.value = false
     })
-  })
+  } finally {
+    accurateLoading.value = false
+  }
 }
 
 const clearAccurateResult = async () => {
@@ -83,6 +86,9 @@ const loadStyle = async () => {
   await tool.getShowLabels((result: any) => { lineStyle.showLabels = result?.showLabels ?? lineStyle.showLabels })
   await tool.getShowClipMesh((result: any) => { lineStyle.showClipMesh = result?.showClipMesh ?? lineStyle.showClipMesh })
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return tool.finishTool()
+})
 </script>
 
 <template>

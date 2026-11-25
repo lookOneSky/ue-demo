@@ -8,6 +8,10 @@ Learn more about the recommended Project Setup and IDE Support in the [Vue Docs 
 
 运行 `npm run dev` 后，打开终端显示的本地地址即可进入示例工作台。实时视口默认连接 `ws://127.0.0.1:6543`，可通过 Vite 环境变量 `VITE_SIGNAL_SERVER_URL` 指向其他信令服务。示例目录、代码和接口参考均可在连接前浏览。
 
+有画面但接口持续超时时，可在「相机控制」选择「读取相机信息」检查业务回包。该操作只读取当前视点。若仍然超时，请确认 UE 正在运行的关卡已加载 `ADasWebCommand` 及其 DasPixel 输入组件，负责接收请求和返回结果。
+
+目录按操作分为相机与漫游、场景与环境、空间查询与测量、绘制与编辑、图层与可视化、影像与应用。比如在「绘制与编辑 → 点线绘制」中，可以先绘制多段线，再进入相邻的图层示例修改样式。目录支持按中文名称、示例 ID 或 SDK 类名搜索，也可以用空格组合分类和关键字。新增示例时在 [demoCatalog.ts](src/components/demoCatalog.ts) 登记分组、组件和主要 SDK 类。
+
 [蓝白色工作台设计记录与预览](docs/api-demo-preview/README.md)
 
 ## 从本机临时发布 APIDemo
@@ -45,6 +49,6 @@ npm run dev
 .\scripts\PullSubmodules.bat
 ```
 
-`npm run build` 会先执行严格 TypeScript 检查，再打包。项目现有类型错误仍需另行整理；只打包 Web 前端可运行 `npx vite build`。`npm run docs`、`npm run docs:html` 和 `npm run docs:all` 使用 TypeScript 解析项目的 JS/JSDoc，生成 Markdown 或 HTML 文档。
+`npm run build` 会先执行严格 TypeScript 检查，再将 Web 前端打包到 `dist`。`npm run docs`、`npm run docs:html` 和 `npm run docs:all` 使用 TypeScript 解析项目的 JS/JSDoc，生成 Markdown 或 HTML 文档。
 
 `Pack/SignallingWebServer/app.cjs` 已随仓库提交，克隆后可直接用于运行或重新打包信令服务。

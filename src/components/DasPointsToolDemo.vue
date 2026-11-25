@@ -1,51 +1,35 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, inject, ref } from 'vue'
+import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
+import { isUESuccess } from "./lib/ExcuteUEFun.js"
 import { DasPointsLayer } from "./lib/Layer/DasPointsLayer.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
 
 // 工具状态
-const isToolActive = ref(false)
+const { isToolActive, changingTool, startTool, stopTool } = usePointPicking()
 
 // 图层相关状态
-const layerVisible = ref(true)
-const currentLayerId = ref('')
-const currentLayer = ref<any>(null)
+const getShareData = inject<(key: string) => unknown>('getShareData')!
+type PointState = { layer?: DasPointsLayer; visible: boolean; pending: boolean; autoScale: boolean }
+const session = getShareData('viewerSession') as { pointDrawing?: PointState } | null
+if (session && !session.pointDrawing) session.pointDrawing = { visible: true, pending: false, autoScale: true }
+const state = session?.pointDrawing
+const currentLayer = computed(() => state?.layer)
+const currentLayerId = computed(() => currentLayer.value?.id || '')
+const layerVisible = computed(() => state?.visible ?? true)
 
 // 工具参数
 const toolParams = ref({
-  texturePath: 'F:/WDS图片/texture.png',
+  texturePath: '',
   pointSize: [50, 50] as [number, number],
   enableDepthTest: true
 })
 
 // AutoScale参数
-const autoScaleParams = ref({
-  autoScale: true
+const autoScale = computed({
+  get: () => state?.autoScale ?? true,
+  set: (value: boolean) => { if (state) state.autoScale = value },
 })
-
-// 启动工具
-const startTool = async () => {
-  try {
-    DasPointsTool.setToCurrent()
-    isToolActive.value = true
-    console.log('点工具已启动')
-  } catch (error) {
-    console.error('启动点工具失败:', error)
-  }
-}
-
-// 结束工具
-const stopTool = () => {
-  try {
-    // 假设有停止工具的方法，如果没有可以考虑切换到默认工具
-    DasPointsTool.finishTool() 
-    isToolActive.value = false
-    console.log('点工具已停止')
-  } catch (error) {
-    console.error('停止点工具失败:', error)
-  }
-}
 
 // 更新工具参数
 const updateToolParams = async () => {
@@ -75,18 +59,29 @@ const setDepthTest = async (value: boolean) => {
 
 // 获取工具参数并创建图层
 const createLayerFromTool = async () => {
+  if (!state || state.pending) return
+  state.pending = true
   try {
-    //alert("getall begin")
     const info = await DasPointsTool.getAll()
-    //alert("getall return")
-    info.isSpread = true;
-    //info.points[0] = [111.0035735671499, 32.40221921600622, 1462.6277383377078]
-    const result = await DasPointsLayer.createInstance({"param": info})
-    currentLayer.value = result
-    currentLayerId.value = result?.id || ''
+    if (session !== getShareData('viewerSession')) return
+    if (!Array.isArray(info.posLLH) || info.posLLH.length !== 3 || !info.posLLH.every(Number.isFinite)) {
+      console.warn('请先在场景中拾取一个点')
+      return
+    }
+    const result = await DasPointsLayer.createInstance({
+      param: {
+        posLLH: info.posLLH, texturePath: info.texturePath, pointSize: info.pointSize,
+        enableDepthTest: info.enableDepthTest, IsSpread: true, autoScale: autoScale.value,
+      }
+    })
+    if (!result?.id) return
+    state.layer = result
+    state.visible = true
     console.log('已从工具创建图层:', result)
   } catch (error) {
     console.error('创建图层失败:', error)
+  } finally {
+    state.pending = false
   }
 }
 
@@ -97,8 +92,10 @@ const setLayerAutoScale = async (value: boolean) => {
       console.warn('请先创建图层')
       return
     }
-    await currentLayer.value.setAutoScale(value)
-    autoScaleParams.value.autoScale = value
+    const layer = currentLayer.value
+    const reply = await layer.setAutoScale(value)
+    if (currentLayer.value !== layer || !isUESuccess(reply)) return
+    autoScale.value = value
     console.log('图层AutoScale设置已更新:', value)
   } catch (error) {
     console.error('设置图层AutoScale失败:', error)
@@ -112,9 +109,8 @@ const getLayerAutoScale = async () => {
       console.warn('请先创建图层')
       return
     }
-    const autoScale = await currentLayer.value.isAutoScale()
-    autoScaleParams.value.autoScale = autoScale
-    console.log('图层AutoScale状态:', autoScale)
+    autoScale.value = await currentLayer.value.isAutoScale()
+    console.log('图层AutoScale状态:', autoScale.value)
   } catch (error) {
     console.error('获取图层AutoScale状态失败:', error)
   }
@@ -122,27 +118,25 @@ const getLayerAutoScale = async () => {
 
 // 定位图层
 const locateLayer = async () => {
-let pRoot = await DasGroupLayer.getRoot();
-  let allLayers = await pRoot.getAllLayer();
-  if(allLayers && allLayers.length > 0)
-  {
-    let classNameGet = await allLayers[0].requestClassName();
-    allLayers[0].flyToThis();
-  }
+  await currentLayer.value?.flyToThis()
 }
 
 // 显隐图层
 const toggleLayerVisibility = async () => {
-  let pRoot = await DasGroupLayer.getRoot();
-  pRoot.setVisible(layerVisible.value);
+  const layer = currentLayer.value
+  if (!state || !layer || state.pending) return
+  const visible = !layerVisible.value
+  const response = await layer.setVisible(visible)
+  if (currentLayer.value === layer && isUESuccess(response)) state.visible = visible
 }
 
 // 删除图层
 const deleteLayer = async () => {
-  let pRoot = await DasGroupLayer.getRoot();
-  pRoot.removeAllLayer();
-  currentLayer.value = null
-  currentLayerId.value = ''
+  const layer = currentLayer.value
+  if (!state || !layer || state.pending) return
+  const response = await layer.removeInstance()
+  if (currentLayer.value !== layer || !isUESuccess(response)) return
+  state.layer = undefined
 }
 </script>
 
@@ -155,12 +149,12 @@ const deleteLayer = async () => {
     <div class="control-group">
       <el-button 
         :type="isToolActive ? 'danger' : 'primary'" 
-        @click="isToolActive ? stopTool() : startTool()"
+        :loading="changingTool" @click="isToolActive ? stopTool() : startTool()"
         style="margin: 10px;">
         {{ isToolActive ? '停止工具' : '启动工具' }}
       </el-button>
       
-      <el-button type="success" @click="createLayerFromTool" style="margin: 10px;">
+      <el-button type="success" :disabled="!state || state.pending" @click="createLayerFromTool" style="margin: 10px;">
         创建图层
       </el-button>
     </div>
@@ -169,7 +163,7 @@ const deleteLayer = async () => {
     <div class="layer-control-group">
       <el-button 
         type="primary" 
-        @click="locateLayer" 
+        @click="locateLayer" :disabled="!currentLayerId"
         style="margin: 10px;">
         定位图层
       </el-button>
@@ -195,7 +189,7 @@ const deleteLayer = async () => {
     <div class="autoscale-control-group" v-if="currentLayer">
       <el-form-item label="AutoScale设置" class="ruihua">
         <el-switch 
-          v-model="autoScaleParams.autoScale"
+          :model-value="autoScale"
           active-text="开启" 
           inactive-text="关闭"
           style="margin-left: 15px;"
@@ -246,7 +240,7 @@ const deleteLayer = async () => {
       <p v-if="isToolActive">您可以在场景中点击添加标记点</p>
       <p>深度测试: {{ toolParams.enableDepthTest ? '开启' : '关闭' }}</p>
       <p v-if="currentLayerId">当前图层ID: {{ currentLayerId }}</p>
-      <p v-if="currentLayer">AutoScale状态: {{ autoScaleParams.autoScale ? '开启' : '关闭' }}</p>
+      <p v-if="currentLayer">AutoScale状态: {{ autoScale ? '开启' : '关闭' }}</p>
     </div>
   </div>
 </template>
@@ -274,4 +268,4 @@ const deleteLayer = async () => {
     background: rgba(225, 187, 130, 0.2);
   }
 }
-</style> 
+</style>

@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { inject, ref, onBeforeUnmount } from 'vue'
 import { DasSelectTool } from './lib/Tool/DasSelectTool.js'
 
 // 工具状态
+const getShareData = inject<(key: string) => unknown>('getShareData')!
 const isToolActive = ref(false)
+let toolSession: unknown
+let starting = false
 
 // 选择模式
 const selectMode = ref('Layer')
@@ -45,10 +48,18 @@ const selectedInfo = ref({
 
 // 启动工具
 const startTool = async () => {
+  if (starting || isToolActive.value) return
+  const session = getShareData('viewerSession')
+  if (!session) return
+  starting = true
+  toolSession = session
   try {
     await DasSelectTool.setToCurrent()
+    if (toolSession !== session) return
     await DasSelectTool.setSelectMode(selectMode.value)
+    if (toolSession !== session) return
     await DasSelectTool.setSelectShowState(selectShowState.value)
+    if (toolSession !== session) return
     isToolActive.value = true
     console.log('选择工具已启动，模式:', selectMode.value, '显示状态:', selectShowState.value)
     
@@ -56,6 +67,8 @@ const startTool = async () => {
     addSelectionEventListener()
   } catch (error) {
     console.error('启动选择工具失败:', error)
+  } finally {
+    starting = false
   }
 }
 
@@ -64,6 +77,7 @@ const stopTool = async () => {
   try {
     await DasSelectTool.finishTool()
     isToolActive.value = false
+    toolSession = undefined
     console.log('选择工具已停止')
     
     // 移除选择响应事件监听
@@ -188,14 +202,16 @@ const setHighlightColor = async () => {
 
 // 清空选择
 const clearSelection = async () => {
-  DasSelectTool.clearSelect()
+  await DasSelectTool.clearSelect()
+  selectedInfo.value.message = ''
 }
 
 // 添加选择响应事件监听
 const addSelectionEventListener = () => {
   DasSelectTool.addCallBack(
-    (json: { message: string; id?: string; type?: string; name?: string; position?: number[] }) => {
-      let strMessage = json.message
+    (json: { function: string; message: string }) => {
+      if (json.function !== 'emitMessage' || typeof json.message !== 'string') return
+      const strMessage = json.message
       
       // 只更新消息内容，不解析json
       selectedInfo.value = {
@@ -215,16 +231,12 @@ const removeSelectionEventListener = () => {
   DasSelectTool.removeCallBack()
 }
 
-// 组件挂载时添加响应事件监听
-onMounted(() => {
-  if (isToolActive.value) {
-    addSelectionEventListener()
-  }
-})
-
-// 组件卸载前移除响应事件监听
 onBeforeUnmount(() => {
-  removeSelectionEventListener()
+  if (toolSession && toolSession === getShareData('viewerSession')) {
+    if (isToolActive.value) removeSelectionEventListener()
+    void DasSelectTool.finishTool().catch(console.error)
+  }
+  toolSession = undefined
 })
 </script>
 

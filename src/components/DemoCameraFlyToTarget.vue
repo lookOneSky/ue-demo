@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from './lib/Tool/DasPointsTool.js'
 import { Camera } from './lib/Scene/Camera.js'
 
-const isToolActive = ref(false) // 点工具是否激活
+const { isToolActive, changingTool, startTool, stopTool } = usePointPicking() // 点工具是否激活
 const targetLLH = ref([0, 0, 0]) // 目标点[经度,纬度,高度]
 const heightToTarget = ref(100) // 相机比目标点高的高度（米）
 const pitch = ref(-30) // 相机俯仰角（度，俯视为负）
@@ -11,18 +12,6 @@ const offsetScreen = ref([0, 0]) // 目标点在屏幕上的偏移像素[x,y]（
 const duration = ref(5) // 飞行时间（秒）
 const addHeightScale = ref(1) // 飞行时增加高度的缩放系数
 const flyResult = ref<boolean | null>(null) // 飞行结果
-
-// 启动点工具
-const startTool = async () => {
-  await DasPointsTool.setToCurrent()
-  isToolActive.value = true
-}
-
-// 停止点工具
-const stopTool = async () => {
-  await DasPointsTool.finishTool()
-  isToolActive.value = false
-}
 
 // 把点工具取到的点填为目标点
 const readPickedPoint = async () => {
@@ -49,7 +38,7 @@ const flyToTarget = async () => {
     <div class="control-group">
       <el-button
         :type="isToolActive ? 'danger' : 'primary'"
-        @click="isToolActive ? stopTool() : startTool()"
+        :loading="changingTool" @click="isToolActive ? stopTool() : startTool()"
         style="margin: 10px;">
         {{ isToolActive ? '停止点工具' : '启动点工具' }}
       </el-button>

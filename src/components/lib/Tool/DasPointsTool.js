@@ -146,7 +146,7 @@ class DasPointsToolClass extends PointToolClass {
 
     /**
      * 一次性获取所有点属性
-     * @returns {Promise<object>} A promise that resolves with an object containing all point properties.
+     * @returns {Promise<{posLLH?: number[], texturePath?: string, pointSize?: number[], enableDepthTest?: boolean}>} 当前点的位置及样式
      */
     async getAll() {
         let result = {};

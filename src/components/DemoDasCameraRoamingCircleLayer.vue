@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { DasCameraRoamingCircleLayer } from "./lib/Layer/DasCameraRoamingCircleLayer.js"
-import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
+import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 
 // 图层状态
 const layerVisible = ref(true)
-const currentLayerId = ref(null)
+const currentLayer = ref<DasCameraRoamingCircleLayer | null>(null)
 const isFlying = ref(false)
 
 // 工具状态
-const isToolActive = ref(false)
+const { isToolActive, changingTool, startTool: startPointTool, stopTool: stopPointTool } = usePointPicking()
 const selectedPoint = ref<number[]>([])
 
 // 环绕参数
@@ -24,33 +24,11 @@ const circleParams = ref({
   height: 0            // 原点高度（米）
 })
 
-// 启动点工具
-const startPointTool = async () => {
-  try {
-    DasPointsTool.setToCurrent()
-    isToolActive.value = true
-    console.log('点工具已启动')
-  } catch (error) {
-    console.error('启动点工具失败:', error)
-  }
-}
-
-// 停止点工具
-const stopPointTool = async () => {
-  try {
-    // 切换到默认工具
-    DasPointsTool.finishTool()
-    isToolActive.value = false
-    console.log('点工具已停止')
-  } catch (error) {
-    console.error('停止点工具失败:', error)
-  }
-}
-
 // 获取当前点位
 const getCurrentPoint = async () => {
   try {
     const point = await DasPointsTool.getPointPosition()
+    if (!Array.isArray(point) || point.length < 3 || !point.every(Number.isFinite)) return
     selectedPoint.value = point
     // 自动设置到环绕参数中
     if (point && point.length >= 3) {
@@ -82,19 +60,19 @@ const createCircleLayer = async () => {
       console.log('使用选中点位创建环绕图层:', selectedPoint.value)
     }
     
-    const result = await DasCameraRoamingCircleLayer.createInstance({
-      param: {
-        rotationRadius: circleParams.value.rotationRadius,
-        cameraPitch: circleParams.value.cameraPitch,
-        flightTime: circleParams.value.flightTime,
-        loopFlight: circleParams.value.loopFlight,
-        longitude: circleParams.value.longitude,
-        latitude: circleParams.value.latitude,
-        height: circleParams.value.height,
-        IsPermanentLayer: true
-      }
-    })
-    currentLayerId.value = result
+    const param = {
+      rotationRadius: circleParams.value.rotationRadius,
+      cameraPitch: circleParams.value.cameraPitch,
+      flightTime: circleParams.value.flightTime,
+      loopFlight: circleParams.value.loopFlight,
+      longitude: circleParams.value.longitude,
+      latitude: circleParams.value.latitude,
+      height: circleParams.value.height,
+      IsPermanentLayer: true
+    }
+    const result = await DasCameraRoamingCircleLayer.createInstance({ param })
+    currentLayer.value = result
+    layerVisible.value = true
     console.log('已创建相机环绕图层:', result)
     await loadSettings()
   } catch (error) {
@@ -102,21 +80,12 @@ const createCircleLayer = async () => {
   }
 }
 
-// 检查图层是否已创建
-const checkLayerExists = () => {
-  if (!currentLayerId.value) {
-    console.warn('请先创建相机环绕图层')
-    return false
-  }
-  return true
-}
-
 // 开始环绕飞行
 const startCircleFlight = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.startCircleFlight()
+    await currentLayer.value.startCircleFlight()
     isFlying.value = true
     console.log('已开始环绕飞行')
   } catch (error) {
@@ -127,9 +96,9 @@ const startCircleFlight = async () => {
 // 停止环绕飞行
 const stopCircleFlight = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.stopCircleFlight()
+    await currentLayer.value.stopCircleFlight()
     isFlying.value = false
     console.log('已停止环绕飞行')
   } catch (error) {
@@ -140,9 +109,9 @@ const stopCircleFlight = async () => {
 // 设置环绕半径
 const setRotationRadius = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setRotationRadius(circleParams.value.rotationRadius)
+    await currentLayer.value.setRotationRadius(circleParams.value.rotationRadius)
     console.log('已设置环绕半径:', circleParams.value.rotationRadius)
   } catch (error) {
     console.error('设置环绕半径失败:', error)
@@ -152,9 +121,9 @@ const setRotationRadius = async () => {
 // 设置相机俯仰角
 const setCameraPitch = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setCameraPitch(circleParams.value.cameraPitch)
+    await currentLayer.value.setCameraPitch(circleParams.value.cameraPitch)
     console.log('已设置相机俯仰角:', circleParams.value.cameraPitch)
   } catch (error) {
     console.error('设置相机俯仰角失败:', error)
@@ -164,9 +133,9 @@ const setCameraPitch = async () => {
 // 设置环绕一圈所需时间
 const setFlightTime = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setFlightTime(circleParams.value.flightTime)
+    await currentLayer.value.setFlightTime(circleParams.value.flightTime)
     console.log('已设置环绕时间:', circleParams.value.flightTime)
   } catch (error) {
     console.error('设置环绕时间失败:', error)
@@ -176,9 +145,9 @@ const setFlightTime = async () => {
 // 设置是否循环飞行
 const setLoopFlight = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setLoopFlight(circleParams.value.loopFlight)
+    await currentLayer.value.setLoopFlight(circleParams.value.loopFlight)
     console.log('已设置循环飞行:', circleParams.value.loopFlight)
   } catch (error) {
     console.error('设置循环飞行失败:', error)
@@ -188,9 +157,9 @@ const setLoopFlight = async () => {
 // 获取环绕飞行设置
 const loadSettings = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const settings = await currentLayerId.value.getCircleFlightSettings()
+    const settings = await currentLayer.value.getCircleFlightSettings()
     circleParams.value = {
       ...circleParams.value,
       ...settings
@@ -204,9 +173,9 @@ const loadSettings = async () => {
 // 设置原点坐标
 const setOriginLLH = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    await currentLayerId.value.setOriginLLH(
+    await currentLayer.value.setOriginLLH(
       circleParams.value.longitude,
       circleParams.value.latitude,
       circleParams.value.height
@@ -224,9 +193,9 @@ const setOriginLLH = async () => {
 // 获取原点坐标
 const getOriginLLH = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const originLLH = await currentLayerId.value.getOriginLLH()
+    const originLLH = await currentLayer.value.getOriginLLH()
     circleParams.value.longitude = originLLH.longitude
     circleParams.value.latitude = originLLH.latitude
     circleParams.value.height = originLLH.height
@@ -239,7 +208,7 @@ const getOriginLLH = async () => {
 // 更新所有参数
 const updateAllSettings = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
     const params = {
       rotationRadius: circleParams.value.rotationRadius,
@@ -251,7 +220,7 @@ const updateAllSettings = async () => {
       height: circleParams.value.height
     }
     
-    await currentLayerId.value.updateAll(params)
+    await currentLayer.value.updateAll(params)
     console.log('已更新所有环绕飞行参数:', params)
   } catch (error) {
     console.error('更新所有环绕飞行参数失败:', error)
@@ -261,13 +230,9 @@ const updateAllSettings = async () => {
 // 定位图层
 const locateLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    const allLayers = await pRoot.getAllLayer()
-    if (allLayers && allLayers.length > 0) {
-      await allLayers[0].flyToThis()
-    }
+    await currentLayer.value.flyToThis()
   } catch (error) {
     console.error('定位图层失败:', error)
   }
@@ -276,11 +241,11 @@ const locateLayer = async () => {
 // 显隐图层
 const toggleLayerVisibility = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    layerVisible.value = !layerVisible.value
-    await pRoot.setVisible(layerVisible.value)
+    const visible = !layerVisible.value
+    await currentLayer.value.setVisible(visible)
+    layerVisible.value = visible
   } catch (error) {
     console.error('切换图层可见性失败:', error)
   }
@@ -289,11 +254,11 @@ const toggleLayerVisibility = async () => {
 // 删除图层
 const deleteLayer = async () => {
   try {
-    if (!checkLayerExists()) return
+    if (!currentLayer.value) return
     
-    const pRoot = await DasGroupLayer.getRoot()
-    await pRoot.removeAllLayer()
-    currentLayerId.value = null
+    await currentLayer.value.removeInstance()
+    layerVisible.value = true
+    currentLayer.value = null
     isFlying.value = false
   } catch (error) {
     console.error('删除图层失败:', error)
@@ -313,7 +278,7 @@ const deleteLayer = async () => {
       <div style="margin: 15px 0; display: flex; flex-wrap: wrap;">
         <el-button 
           :type="isToolActive ? 'danger' : 'primary'" 
-          @click="isToolActive ? stopPointTool() : startPointTool()"
+          :disabled="changingTool" @click="isToolActive ? stopPointTool() : startPointTool()"
           style="margin: 5px;">
           {{ isToolActive ? '停止点工具' : '启动点工具' }}
         </el-button>
@@ -356,7 +321,7 @@ const deleteLayer = async () => {
           type="primary" 
           @click="locateLayer" 
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           定位图层
         </el-button>
         
@@ -364,7 +329,7 @@ const deleteLayer = async () => {
           :type="layerVisible ? 'warning' : 'success'" 
           @click="toggleLayerVisibility"
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           {{ layerVisible ? '隐藏图层' : '显示图层' }}
         </el-button>
         
@@ -372,7 +337,7 @@ const deleteLayer = async () => {
           type="danger" 
           @click="deleteLayer"
           style="margin: 5px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           删除图层
         </el-button>
       </div>
@@ -386,7 +351,7 @@ const deleteLayer = async () => {
         <el-button 
           :type="isFlying ? 'danger' : 'success'" 
           @click="isFlying ? stopCircleFlight() : startCircleFlight()"
-          :disabled="!currentLayerId"
+          :disabled="!currentLayer"
           style="margin: 5px;">
           {{ isFlying ? '停止环绕飞行' : '开始环绕飞行' }}
         </el-button>
@@ -425,6 +390,9 @@ const deleteLayer = async () => {
         </el-input-number>
       </el-form-item>
       
+      <el-button :disabled="!currentLayer" @click="setOriginLLH">应用原点坐标</el-button>
+      <el-button :disabled="!currentLayer" @click="getOriginLLH">读取原点坐标</el-button>
+
       <el-form-item label="环绕半径(米)" class="ruihua">
         <el-input-number 
           v-model="circleParams.rotationRadius" 
@@ -438,7 +406,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setRotationRadius" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -456,7 +424,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setCameraPitch" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -474,7 +442,7 @@ const deleteLayer = async () => {
           size="small" 
           @click="setFlightTime" 
           style="margin-left: 10px;"
-          :disabled="!currentLayerId">
+          :disabled="!currentLayer">
           应用
         </el-button>
       </el-form-item>
@@ -494,14 +462,14 @@ const deleteLayer = async () => {
         type="primary" 
         @click="updateAllSettings" 
         style="margin: 15px;"
-        :disabled="!currentLayerId">
+        :disabled="!currentLayer">
         更新所有参数
       </el-button>
     </div>
 
     <!-- 状态提示 -->
     <div class="status-panel" :class="{ 'active': isFlying }">
-      <p v-if="currentLayerId">当前图层ID: {{ currentLayerId.id }}</p>
+      <p v-if="currentLayer">当前图层ID: {{ currentLayer.id }}</p>
       <p v-else>未创建图层</p>
       <p v-if="isToolActive">点工具已激活</p>
       <p>飞行状态: {{ isFlying ? '正在环绕飞行' : '未飞行' }}</p>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onUnmounted } from 'vue'
 import Scene from './lib/Scene/Scene.js'
 
 const savePath = ref('')
@@ -8,32 +8,27 @@ const tilesScreenSpaceError = ref(0)
 const isLoading = ref(false)
 const lastResult = ref<string | null>(null)
 
-const onScreenshotCompleted = (json: string) => {
-  try {
-    const data = JSON.parse(json)
-    lastResult.value = `截图完成: ${data.filePath || '已保存'}`
-  } catch {
-    lastResult.value = '截图完成'
-  }
+let unsubscribe: (() => void) | undefined
+
+function finishRequest(message: string) {
+  lastResult.value = message
   isLoading.value = false
+  unsubscribe?.()
+  unsubscribe = undefined
 }
 
-onMounted(() => {
-  window.viewer?.addResponseEventListener('screenshotCompleted', onScreenshotCompleted)
-})
-
-onUnmounted(() => {
-  window.viewer?.removeResponseEventListener('screenshotCompleted', onScreenshotCompleted)
-})
+onUnmounted(() => unsubscribe?.())
 
 const takeScreenshot = async () => {
   if (isLoading.value) return
   isLoading.value = true
   lastResult.value = null
-  const success = await Scene.takeScreenshot(savePath.value, resolutionMultiplier.value, tilesScreenSpaceError.value)
-  if (!success) {
-    lastResult.value = '截图请求失败'
-    isLoading.value = false
+  try {
+    unsubscribe = Scene.onScreenshotCompleted(() => finishRequest('截图完成'))
+    const success = await Scene.takeScreenshot(savePath.value, resolutionMultiplier.value, tilesScreenSpaceError.value)
+    if (!success) finishRequest('截图请求失败')
+  } catch {
+    finishRequest('截图请求失败')
   }
 }
 </script>

@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { computed, ref } from 'vue'
 import { DasPointEditTool } from './lib/Tool/DasPointEditTool.js'
 import { DasPolygonLayer } from './lib/Layer/DasPolygonLayer.js'
-import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
 import { buildProjectRelativePath, getProjectRootPath } from '../utils/projectPath'
 
 const isToolActive = ref(false)
@@ -50,7 +50,7 @@ const buildLayerConfig = () => {
 }
 
 const createLayer = async () => {
-  DasPointEditTool.finishTool()
+  await DasPointEditTool.finishTool()
   isToolActive.value = false
   const result = await DasPolygonLayer.createInstance({ param: buildLayerConfig() })
   if (result) {
@@ -67,13 +67,13 @@ const createLayer = async () => {
 
 const editLayer = async () => {
   if (!currentLayer.value) return
-  await DasPointEditTool.editLayer(currentLayer.value)
-  await DasPointEditTool.setToCurrent()
-  isToolActive.value = true
+  if (await DasPointEditTool.editLayer(currentLayer.value)) {
+    isToolActive.value = await DasPointEditTool.setToCurrent()
+  }
 }
 
 const stopTool = async () => {
-  DasPointEditTool.finishTool()
+  await DasPointEditTool.finishTool()
   isToolActive.value = false
 }
 
@@ -84,14 +84,15 @@ const locateLayer = async () => {
 
 const toggleLayerVisibility = async () => {
   if (!currentLayer.value) return
-  layerVisible.value = !layerVisible.value
-  await currentLayer.value.setVisible(layerVisible.value)
+  const visible = !layerVisible.value
+  await currentLayer.value.setVisible(visible)
+  layerVisible.value = visible
 }
 
 const deleteLayer = async () => {
-  DasPointEditTool.finishTool()
-  const pRoot = await DasGroupLayer.getRoot()
-  await pRoot.removeAllLayer()
+  if (!currentLayer.value) return
+  if (isToolActive.value) await stopTool()
+  await currentLayer.value.removeInstance()
   currentLayerId.value = ''
   currentLayer.value = null
   layerVisible.value = true
@@ -161,6 +162,9 @@ const updateAll = async () => {
   if (!currentLayer.value) return
   await currentLayer.value.updateAll(buildLayerConfig())
 }
+onViewerSessionLeave(() => {
+  if (isToolActive.value) return DasPointEditTool.finishTool()
+})
 </script>
 
 <template>

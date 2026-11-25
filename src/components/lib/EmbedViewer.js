@@ -8,17 +8,15 @@ class EmbedViewer {
 	}
 
 	sendMessage(message, chunkSize = 100000) {
+		const bridge = window.ue?.daswebbridge
+		if (!bridge) return false
+		if (!Number.isInteger(chunkSize) || chunkSize <= 0) throw new RangeError("chunkSize 必须为正整数")
 		const jsonStr = JSON.stringify(message)
-		const send = (str) => {
-			const ue = window.ue
-			if (ue?.daswebbridge) {
-				ue.daswebbridge.onmessage(str)
-			}
-		}
+		const send = (str) => bridge.onmessage(str)
 
 		if (jsonStr.length <= chunkSize) {
 			send(jsonStr)
-			return
+			return true
 		}
 
 		const chunks = []
@@ -31,6 +29,7 @@ class EmbedViewer {
 			send(chunks[i])
 		}
 		send(chunks[chunks.length - 1] + 'END')
+		return true
 	}
 
 	onMessage(message) {

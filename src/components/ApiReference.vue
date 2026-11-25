@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useId, watch } from 'vue'
+import { loadDemoSource } from './demoSources'
 
 const props = defineProps<{ owner: string; file: string }>()
-const demos = import.meta.glob<string>(
-  ['./Demo*.vue', './Das*Demo.vue', './SceneDemo.vue', './levelSequence.vue', './weatherDemo.vue'],
-  { query: '?raw', import: 'default' }
-)
-const sdk = import.meta.glob<string>('./lib/{Layer,Scene,Tool}/**/*.js', { query: '?raw', import: 'default' })
+const sdk = import.meta.glob<string>(['./lib/{Layer,Scene,Tool}/**/*.js', './lib/DasClassBase.js'], { query: '?raw', import: 'default' })
 const id = useId()
 const dialog = ref<HTMLDialogElement>()
 const visible = ref(false)
@@ -33,9 +30,7 @@ watch(() => [visible.value, props.file] as const, async ([show, file], _, onClea
   if (!show) return
   status.value = '正在读取接口…'
   try {
-    const load = demos[`./${file}.vue`]
-    if (!load) throw new Error()
-    const vueFile = await load()
+    const vueFile = await loadDemoSource(file)
     if (!live) return
     const script = vueFile.match(/<script\b[^>]*>([\s\S]*?)<\/script>/i)?.[1] || ''
     const imports = /^\s*import\s+([^'";]+?)\s+from\s*['"](\.\/lib\/[^'"]+)['"]/gm
@@ -99,6 +94,24 @@ const methods = computed(() => {
 })
 const visibleMethods = computed(() => methods.value.filter(method => method.name.toLowerCase().includes(filter.value.trim().toLowerCase())))
 const baseClass = computed(() => source.value.match(/^class\s+[\w$]+\s+extends\s+([\w$]+)/m)?.[1])
+const parentModule = computed(() => {
+  const name = baseClass.value
+  const current = currentModule.value
+  if (!name || !current) return
+  const imports = /^\s*import\s+([^'";]+?)\s+from\s*['"](\.[^'"]+)['"]/gm
+  for (const [, names, relative] of source.value.matchAll(imports)) {
+    if (!names.replace(/[{}]/g, '').split(',').some(symbol => symbol.trim().split(/\s+as\s+/).pop() === name)) continue
+    const path = '.' + new URL(relative, 'file:///' + current.path.slice(2)).pathname
+    if (sdk[path]) return { name, path }
+  }
+})
+
+function showParent() {
+  const parent = parentModule.value
+  if (!parent) return
+  if (!modules.value.some(item => item.name === parent.name)) modules.value.push(parent)
+  selected.value = parent.name
+}
 </script>
 
 <template>
@@ -119,7 +132,10 @@ const baseClass = computed(() => source.value.match(/^class\s+[\w$]+\s+extends\s
       <div :key="file + selected" class="reference-body">
         <p v-if="status" role="status">{{ status }}</p>
         <template v-else-if="source && currentModule">
-          <p class="source-path">{{ currentModule.path.slice(2) }}<span v-if="baseClass"> · 继承 {{ baseClass }}</span></p>
+          <p class="source-path">{{ currentModule.path.slice(2) }}<span v-if="baseClass"> · 继承
+            <button v-if="parentModule" type="button" class="parent-class" @click="showParent">{{ baseClass }}</button>
+            <template v-else>{{ baseClass }}</template>
+          </span></p>
           <p class="count">本文件定义的方法 · {{ methods.length }}</p>
           <div v-for="method in visibleMethods" :key="method.signature" class="method">
             <code>{{ method.signature }}</code>
@@ -150,6 +166,7 @@ const baseClass = computed(() => source.value.match(/^class\s+[\w$]+\s+extends\s
 .single-class { align-self: center; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
 .reference-body { overflow: auto; min-height: 70px; padding: 14px 18px 20px; overflow-wrap: anywhere; }
 .source-path, .count { color: var(--muted); font-size: 12px; }
+.parent-class { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 .reference .count { margin-block: 6px; }
 .method { padding: 9px 0; border-bottom: 1px solid var(--line); line-height: 1.55; }
 .method code { display: block; color: #174b92; font: 600 13px/1.5 var(--mono); }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { loadDemoSource } from './demoSources'
 
 const props = defineProps<{
   file: string
@@ -9,10 +10,6 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ 'update:showResult': [value: boolean] }>()
 const id = useId()
-const sourceFiles = import.meta.glob<string>(
-  ['./Demo*.vue', './Das*Demo.vue', './SceneDemo.vue', './levelSequence.vue', './weatherDemo.vue'],
-  { query: '?raw', import: 'default' }
-)
 
 const source = ref('')
 const firstLine = ref(1)
@@ -34,9 +31,7 @@ watch(() => [props.file, Boolean(props.snippet)] as const, async ([file, generat
   if (generated) return
 
   try {
-    const load = sourceFiles[`./${file}.vue`]
-    if (!load) throw new Error()
-    const raw = (await load()).replace(/\r\n?/g, '\n')
+    const raw = (await loadDemoSource(file)).replace(/\r\n?/g, '\n')
     const script = /<script\b[^>]*>([\s\S]*?)<\/script\s*>/i.exec(raw)
     if (!script || !script[1].trim()) throw new Error()
     if (!current) return

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { inject, ref, onMounted } from 'vue'
 import { Camera } from './lib/Scene/Camera.js'
 
 // 边界检查
@@ -80,12 +80,16 @@ const handleRefreshBoundingSphere = async () => {
 }
 
 // 初始化时拉取当前状态
+const getShareData = inject<(key: string) => unknown>('getShareData')!
 onMounted(() => {
-  handleRefreshDisableBoundCheck()
-  handleRefreshPawnEnable()
-  handleRefreshMouseWheelSpeed()
-  handleRefreshForceUseNearTranslationMode()
-  handleRefreshBoundingSphere()
+  if (!getShareData('viewerReady')) return
+  return Promise.all([
+    handleRefreshDisableBoundCheck(),
+    handleRefreshPawnEnable(),
+    handleRefreshMouseWheelSpeed(),
+    handleRefreshForceUseNearTranslationMode(),
+    handleRefreshBoundingSphere(),
+  ])
 })
 </script>
 

@@ -100,7 +100,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { inject, ref, onMounted } from 'vue'
 import Scene from './lib/Scene/Scene.js'
 
 // 投影模式
@@ -152,9 +152,13 @@ const getPawnTypeInfo = (pawnType: string) => {
 }
 
 // 初始化时获取当前操作器类型
+const getShareData = inject<(key: string) => unknown>('getShareData')!
 onMounted(() => {
-  handleGetCurrentPawnType()
-  handleGetProjection()
+  if (!getShareData('viewerReady')) return
+  return Promise.all([
+    handleGetCurrentPawnType(),
+    handleGetProjection(),
+  ])
 })
 </script>
 
@@ -371,4 +375,4 @@ onMounted(() => {
   color: #ffffff;
   font-family: "Source Han Sans CN";
 }
-</style> 
+</style>

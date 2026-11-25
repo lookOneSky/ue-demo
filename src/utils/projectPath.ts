@@ -10,17 +10,19 @@ export const getProjectRootPath = () => {
     return normalizeWindowsPath(__UE_DEMO_PROJECT_ROOT__)
   }
 
-  const stored = window.localStorage.getItem(PROJECT_ROOT_STORAGE_KEY)
-  if (stored) {
-    return normalizeWindowsPath(stored)
-  }
+  try {
+    const stored = window.localStorage.getItem(PROJECT_ROOT_STORAGE_KEY)
+    if (stored) return normalizeWindowsPath(stored)
+  } catch { /* An embedded browser may disable storage. */ }
 
   return normalizeWindowsPath(__UE_DEMO_PROJECT_ROOT__)
 }
 
 export const persistProjectRootPath = () => {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(PROJECT_ROOT_STORAGE_KEY, getProjectRootPath())
+  try {
+    window.localStorage.setItem(PROJECT_ROOT_STORAGE_KEY, getProjectRootPath())
+  } catch { /* The build-time path remains available for this session. */ }
 }
 
 export const buildProjectRelativePath = (...segments: string[]) => {

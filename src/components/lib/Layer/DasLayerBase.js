@@ -9,7 +9,7 @@ class DasLayerBase extends DasClassBase {
 
     // Get the layer's unique ID
     getID = async function () {
-        let layerID = 0;
+        let layerID = "";
         await this.excuteUEClassFunction("getID", {}, function(json) {
             layerID = json.LayerID;
         });
@@ -48,11 +48,12 @@ class DasLayerBase extends DasClassBase {
 
     // Get the layer's parent
     getParent = async function () {
-        let parent = null;
-        await this.excuteUEClassFunction("getParent", {}, function(json) {
-            parent = new DasGroupLayer();
-            parent.readObjectInfo(json);
-        });
+        const reply = await this.excuteUEClassFunction("getParent", {});
+        if (!reply.parent?.id) return null;
+        // The group class extends this base, so load it after both classes are initialized.
+        const { DasGroupLayer } = await import("./DasGroupLayer.js");
+        const parent = new DasGroupLayer();
+        parent.readObjectInfo(reply.parent);
         return parent;
     }
 
@@ -256,7 +257,7 @@ class DasLayerBase extends DasClassBase {
 
     readObjectInfo(obj) {
         super.readObjectInfo(obj);
-        layerID = obj.LayerID;
+        this.layerID = obj?.layerID ?? obj?.LayerID;
     }
 
     writeObjectInfo() {

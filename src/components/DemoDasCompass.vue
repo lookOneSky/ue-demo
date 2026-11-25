@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Loading } from '@element-plus/icons-vue'
 import { ref } from 'vue'
 import { DasCompass } from './lib/Scene/DasCompass.js'
 

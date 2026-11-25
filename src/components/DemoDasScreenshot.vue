@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { inject, onMounted, onUnmounted, ref } from 'vue'
 import { ScreenShotTileset, type ScreenShotTilesetProgress } from './lib/Scene/ScreenShotTileset.js'
 
 const savePath = ref('')
@@ -142,7 +142,9 @@ const cancelScreenshot = async () => {
   }
 }
 
+const getShareData = inject<(key: string) => unknown>('getShareData')
 onMounted(() => {
+  if (!getShareData?.('viewerReady')) return
   removeProgressListener = ScreenShotTileset.onScreenshotProgress(onScreenshotProgress)
   removeCompletedListener = ScreenShotTileset.onScreenshotCompleted(onScreenshotCompleted)
   void refreshStatus()

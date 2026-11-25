@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
-import * as cameraModule from './lib/Scene/Camera.js'
+import { Camera } from './lib/Scene/Camera.js'
 
 const props = defineProps<{ ready: boolean }>()
 const emit = defineEmits<{ snippet: [code: string]; result: [message: string] }>()
@@ -15,15 +15,6 @@ interface CameraView {
   locationLLH: [number, number, number]
   rotationLLH: { pitch: number; yaw: number; roll: number }
 }
-interface CameraApi {
-  flyToCameraPositionByName(name: string, duration: number): Promise<boolean>
-  getCameraFlyInfoLLH(): Promise<Partial<CameraView>>
-  flyToLocationLLH(location: CameraView['locationLLH'], rotation: CameraView['rotationLLH'], duration: number, heightScale: number | boolean): Promise<boolean>
-  flyToLocationLongLat(longitude: number, latitude: number, yaw: number, pitch: number, duration: number, heightScale: number, extraHeight: number): Promise<boolean>
-  forbitAddHeightOnFly(forbid: boolean): Promise<boolean>
-}
-const { Camera } = cameraModule as unknown as { Camera: CameraApi }
-
 const method = ref<Method>('flyToCameraPositionByName')
 const positionName = ref('相机点位1')
 const flyDuration = ref(5)
@@ -54,7 +45,7 @@ const call = computed(() => {
     case 'flyToLocationLLH': return prepareCall(Camera.flyToLocationLLH,
       [pose.longitude, pose.latitude, pose.height],
       { pitch: pose.pitch, yaw: pose.yaw, roll: pose.roll },
-      flyDuration.value, true
+      flyDuration.value, 1
     )
     case 'flyToLocationLongLat': return prepareCall(Camera.flyToLocationLongLat,
       ground.longitude, ground.latitude, ground.yaw, ground.pitch,
@@ -83,7 +74,7 @@ function invalidate() {
   runId++
   busy.value = false
 }
-function waitForReply(request: number, waitingFor: keyof CameraApi) {
+function waitForReply(request: number, waitingFor: Method | 'forbitAddHeightOnFly') {
   window.clearTimeout(responseTimer)
   responseTimer = window.setTimeout(() => {
     if (request !== runId) return
@@ -183,8 +174,8 @@ async function run() {
         <input v-model="positionName" required placeholder="请输入点位名称" />
       </label>
       <div v-if="usesCoordinates" class="cam-grid">
-        <label class="cam-field"><span>经度（°）</span><input v-model.number="target.longitude" type="number" step="any" required /></label>
-        <label class="cam-field"><span>纬度（°）</span><input v-model.number="target.latitude" type="number" step="any" required /></label>
+        <label class="cam-field"><span>经度（°）</span><input v-model.number="target.longitude" type="number" min="-180" max="180" step="any" required /></label>
+        <label class="cam-field"><span>纬度（°）</span><input v-model.number="target.latitude" type="number" min="-90" max="90" step="any" required /></label>
         <label v-if="!isGroundFlight" class="cam-field"><span>高度（m）</span><input v-model.number="pose.height" type="number" step="any" required /></label>
         <label class="cam-field"><span>偏航角 Yaw（°）</span><input v-model.number="target.yaw" type="number" min="-360" max="360" step="any" required /></label>
         <label class="cam-field"><span>俯仰角 Pitch（°）</span><input v-model.number="target.pitch" type="number" min="-90" max="90" step="any" required /></label>
@@ -202,7 +193,6 @@ async function run() {
           <label class="cam-field"><span>高度缩放系数</span><input v-model.number="ground.scale" type="number" min="0" step="any" required /></label>
           <label class="cam-field"><span>附加观察高度（m）</span><input v-model.number="ground.extraHeight" type="number" step="any" required /></label>
         </div>
-        <p class="cam-help">当前 SDK 向引擎传递前六个参数，附加观察高度仅保留在调用示例中。</p>
       </template>
       <label v-if="usesCoordinates" class="cam-check"><input v-model="forbidAddHeight" type="checkbox" />飞行时禁止添加高度</label>
       <dl v-if="method === 'getCameraFlyInfoLLH' && lastView" class="cam-view">

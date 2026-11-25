@@ -21,7 +21,7 @@ const introText = ref([
   '遇见武当，便是踏上了一场问道求真的心灵之旅。在这里，每一砖一瓦都镌刻着历史的痕迹，每一风一雨都诉说着道家的智慧与哲理。让我们在遇真宫的庄严与神秘中，探寻先人足迹，领悟道家哲理。',
 ]);
 
-const changeIntro = (delta) => {
+const changeIntro = (delta: number) => {
   if (delta > 0) {
     introIndex.value = introIndex.value + delta > introText.value.length - 1 ? introText.value.length - 1 : introIndex.value + delta;
   } else {
@@ -29,7 +29,7 @@ const changeIntro = (delta) => {
   }
 }
 
-const handleWheel = (e) => {
+const handleWheel = (e: WheelEvent) => {
   changeIntro(e.deltaY > 0 ? 1 : -1);
 }
 const clickEnter = () => {
