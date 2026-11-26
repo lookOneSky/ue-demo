@@ -1,4 +1,4 @@
-import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 import { DasLayerBase } from "./DasLayerBase.js";
 
 class DasUIBillboardLayer extends DasLayerBase {
@@ -11,7 +11,7 @@ class DasUIBillboardLayer extends DasLayerBase {
 
     static smapID2Callback = new Map();
     static sClassName = "DasUIBillboardLayer";
-    static listeningViewer = null;
+    static isInitListener = false;
 
     /**
      * 设置网页URL
@@ -154,9 +154,6 @@ class DasUIBillboardLayer extends DasLayerBase {
      * @param {number} [param.param.width] - 宽度
      * @param {number} [param.param.height] - 高度
      * @param {Array<number>} [param.param.posLLH] - 经纬度高程坐标数组 [longitude, latitude, height]
-     * @param {number} [param.param.x] - 横向屏幕偏移
-     * @param {number} [param.param.y] - 纵向屏幕偏移
-     * @param {boolean} [param.param.onlyWhenVisible] - 仅在可见时显示
      * @returns {Promise<DasUIBillboardLayer>} - 新创建的标牌图层实例
      */
     static async createInstance(param) {
@@ -170,13 +167,11 @@ class DasUIBillboardLayer extends DasLayerBase {
         return billboardLayer;
     }
 
-    /** @param {(layer: DasUIBillboardLayer, message: string) => void} callback */
     addWebConsoleMessageListener = function (callback) {
-        if (DasUIBillboardLayer.listeningViewer !== window.viewer) {
-            DasUIBillboardLayer.listeningViewer = window.viewer;
-            DasUIBillboardLayer.smapID2Callback.clear();
+        if (!DasUIBillboardLayer.isInitListener) {  
+            DasUIBillboardLayer.isInitListener = true;
             window.viewer.addResponseEventListener(DasUIBillboardLayer.sClassName, (json) => {
-                let JsonObject = parseUEMessage(json);
+                let JsonObject = JSON.parse(json);
 
                 if (JsonObject.class != DasUIBillboardLayer.sClassName)
                     return;
@@ -184,7 +179,7 @@ class DasUIBillboardLayer extends DasLayerBase {
                 if (JsonObject.function != "emitMessage")
                     return;
 
-                let JsonObjectMessage = parseUEMessage(JsonObject.message);
+                let JsonObjectMessage = JSON.parse(JsonObject.message);
                 const id = JsonObjectMessage.id;
                 const callback = DasUIBillboardLayer.smapID2Callback.get(id);
                 if (callback)
@@ -196,10 +191,6 @@ class DasUIBillboardLayer extends DasLayerBase {
             });
         }
         DasUIBillboardLayer.smapID2Callback.set(this.id, callback);
-    }
-
-    removeWebConsoleMessageListener() {
-        DasUIBillboardLayer.smapID2Callback.delete(this.id);
     }
 
     static clearWebConsoleMessageListener = function () {

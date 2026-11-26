@@ -192,8 +192,6 @@ class DasWidgetBillboardLayer extends DasLayerBase {
      * @param {number} [param.param.offsetX] - X轴屏幕偏移量
      * @param {number} [param.param.offsetY] - Y轴屏幕偏移量
      * @param {Array<number>} [param.param.offset] - 偏移量数组 [offsetX, offsetY]
-     * @param {boolean} [param.param.autoScale] - 自动缩放
-     * @param {number} [param.param.rate] - 深度偏移系数
      * @returns {Promise<DasWidgetBillboardLayer>} - 新创建的标牌图层实例
      */
     static async createInstance(param) {

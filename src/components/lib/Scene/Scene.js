@@ -1,4 +1,4 @@
-import { ExcuteUEFun, isUESuccess, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * JavaScript wrapper for the UWebScene UE component
@@ -7,7 +7,7 @@ import { ExcuteUEFun, isUESuccess, parseUEMessage } from "../ExcuteUEFun.js";
 class Scene {
     static className = "Scene";
     static _sceneMessageCallbacks = new Map();
-    static _listeningViewer = null;
+    static _bSceneListenerCreated = false;
 
     static async screenToWorld(screenX, screenY) {
         let result = {};
@@ -34,7 +34,8 @@ class Scene {
             makeVisible: makeVisible
         };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "loadLevel", param, function (json) {
-            result = isUESuccess(json);
+            // C++ loadLevel返回true，表示请求成功发起。实际加载完成通过事件监听。
+            result = json.result === true; // Assuming C++ writes '"result":true' on success
         });
         return result;
     }
@@ -50,7 +51,7 @@ class Scene {
             levelName: levelName
         };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "unloadLevel", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
@@ -66,7 +67,8 @@ class Scene {
             pawnType: pawnType
         };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "switchPawnType", param, function (json) {
-            success = isUESuccess(json);
+            // C++ switchPawnType 返回 true/false，并且在成功时写出 "result": true 到 writer
+            success = json.result === true;
         });
         return success;
     }
@@ -97,7 +99,7 @@ class Scene {
             bPerspective: bPerspective
         };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "setPerspectiveProjection", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -148,7 +150,7 @@ class Scene {
             enableScreenCollision: enable
         };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "SetSceneScreenCollisionEnable", param, function (json) {
-            result = isUESuccess(json);
+            result = json && json.success === true;
         });
         return result;
     }
@@ -169,8 +171,8 @@ class Scene {
             resolutionMultiplier: resolutionMultiplier,
             "3DtilesScreenSpaceError": tilesScreenSpaceError
         };
-        await ExcuteUEFun.excuteUEFunction(Scene.className, "takeScreenshot", param, function (json) {
-            result = isUESuccess(json);
+        await ExcuteUEFun.excuteUEFunction(Scene.className, "takeScreenshot", param, function () {
+            result = true;
         });
         return result;
     }
@@ -185,8 +187,8 @@ class Scene {
     static async SetOriginLLH(longitude, latitude, height) {
         let result = false;
         let param = { longitude, latitude, height };
-        await ExcuteUEFun.excuteUEFunction(Scene.className, "SetOriginLLH", param, function (json) {
-            result = isUESuccess(json);
+        await ExcuteUEFun.excuteUEFunction(Scene.className, "SetOriginLLH", param, function () {
+            result = true;
         });
         return result;
     }
@@ -215,7 +217,7 @@ class Scene {
         let result = false;
         let param = { orthoWidth: orthoWidth };
         await ExcuteUEFun.excuteUEFunction(Scene.className, "setOrthoWidth", param, function (json) {
-            result = isUESuccess(json);
+            result = json && json.result === "Success";
         });
         return result;
     }
@@ -228,8 +230,8 @@ class Scene {
     static async loadNextLevel(levelName) {
         let result = false;
         let param = { levelName: levelName };
-        await ExcuteUEFun.excuteUEFunction(Scene.className, "loadNextLevel", param, function (json) {
-            result = isUESuccess(json);
+        await ExcuteUEFun.excuteUEFunction(Scene.className, "loadNextLevel", param, function () {
+            result = true;
         });
         return result;
     }
@@ -242,8 +244,8 @@ class Scene {
     static async getPointsHeightAsync(points) {
         let result = false;
         let param = { points };
-        await ExcuteUEFun.excuteUEFunction(Scene.className, "getPointsHeightAsync", param, function (json) {
-            result = isUESuccess(json);
+        await ExcuteUEFun.excuteUEFunction(Scene.className, "getPointsHeightAsync", param, function () {
+            result = true;
         });
         return result;
     }
@@ -251,7 +253,7 @@ class Scene {
     /**
      * 监听多点高度查询结果
      * @param {function} callback - (data: {points: [{longitude, latitude, height, success}]}) => void
-     * @returns {() => void} 取消监听函数
+     * @returns {function} 取消监听函数
      */
     static onPointsHeightResult(callback) {
         return Scene.onSceneMessage("pointsHeightResult", callback);
@@ -261,7 +263,7 @@ class Scene {
      * 监听 UE 通过 emitMessage 推送的 Scene 消息
      * @param {string} message - 要监听的消息内容（对应 emitMessage 第二个参数）
      * @param {function} callback - 回调函数 () => void
-     * @returns {() => void} 取消监听函数
+     * @returns {function} 取消监听函数
      */
     static onSceneMessage(message, callback) {
         if (!Scene._sceneMessageCallbacks.has(message)) {
@@ -269,10 +271,10 @@ class Scene {
         }
         Scene._sceneMessageCallbacks.get(message).add(callback);
 
-        if (Scene._listeningViewer !== window.viewer) {
-            Scene._listeningViewer = window.viewer;
+        if (!Scene._bSceneListenerCreated) {
+            Scene._bSceneListenerCreated = true;
             window.viewer.addResponseEventListener(Scene.className, (json) => {
-                const obj = parseUEMessage(json);
+                const obj = JSON.parse(json);
                 if (obj.class !== Scene.className) return;
                 if (obj.function !== "emitMessage") return;
                 if (obj.messageName === "message") {
@@ -298,7 +300,7 @@ class Scene {
     /**
      * 监听截图完成通知
      * @param {function} callback - 截图完成时调用
-     * @returns {() => void} 取消监听函数
+     * @returns {function} 取消监听函数
      */
     static onScreenshotCompleted(callback) {
         return Scene.onSceneMessage("screenshotCompleted", callback);

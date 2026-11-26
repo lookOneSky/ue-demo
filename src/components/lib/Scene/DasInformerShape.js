@@ -1,4 +1,4 @@
-import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * DasInformerShape 类
@@ -15,20 +15,20 @@ class DasInformerShape {
     static mapOutsideCallbacks = new Map();
 
     // 是否已创建 UE 响应监听
-    static _listeningViewer = null;
+    static bCreateListener = false;
 
     /**
      * 初始化 UE 事件监听（内部调用，仅初始化一次）
      */
     static _ensureListener() {
-        if (DasInformerShape._listeningViewer === window.viewer) return;
-        DasInformerShape._listeningViewer = window.viewer;
+        if (DasInformerShape.bCreateListener) return;
+        DasInformerShape.bCreateListener = true;
 
         window.viewer.addResponseEventListener(DasInformerShape.className, (json) => {
-            const obj = parseUEMessage(json);
+            const obj = JSON.parse(json);
             if (obj.class !== DasInformerShape.className || obj.function !== "emitMessage") return;
 
-            const message = parseUEMessage(obj.message);
+            const message = JSON.parse(obj.message);
             const shapeID   = message.shapeID   ?? "";
             const shapeName = message.shapeName ?? "";
 

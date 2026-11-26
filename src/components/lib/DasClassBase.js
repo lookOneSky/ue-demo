@@ -1,4 +1,5 @@
-import { ExcuteUEFun, isUEFailure } from "./ExcuteUEFun.js";
+import { fa } from "element-plus/es/locales.mjs";
+import { ExcuteUEFun } from "./ExcuteUEFun.js";
 
 class DasClassBase {
     constructor() {
@@ -21,10 +22,12 @@ class DasClassBase {
         return name;
     }
   
-    readObjectInfo(obj) {
-        if (!obj?.id) throw new Error(`UE 未返回 ${this.className} 的实例 ID`);
+    readObjectInfo = function (obj) {
+        if (obj == null) {
+            return
+        }
         this.id = obj.id;
-        this.className = obj.class || this.className
+        this.className = obj.class
     }
 
     writeObjectJson = function () {
@@ -34,22 +37,20 @@ class DasClassBase {
         return json
     }
     
-    /** @param {Function} [callback] */
     async removeInstance(callback) {
         if (this.id == "") {
             return
         }
-        return this.excuteUEClassFunction("removeInstance", {}, callback);
+        var param = {}
+
+        param.id = this.id
+        let result = await ExcuteUEFun.excuteUEFunction(this.getClassName(), "removeInstance", param, callback);
+        return result;
     }
 
-    /**
-     * @param {string} funName
-     * @param {object} param
-     * @param {Function} [callback]
-     */
     async excuteUEClassFunction (funName, param, callback) {
-        const result = await ExcuteUEFun.excuteUEFunction(this.getClassName(), funName, { ...param, id: this.id }, callback);
-        if (!callback && isUEFailure(result)) throw new Error(`${this.getClassName()}.${funName} 执行失败`);
+        param.id = this.id
+        let result = await ExcuteUEFun.excuteUEFunction(this.getClassName(), funName, param, callback);
         return result;
     }
 

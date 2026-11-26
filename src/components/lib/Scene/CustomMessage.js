@@ -1,4 +1,4 @@
-import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * JavaScript wrapper for UWebCustomMessage UE component
@@ -7,7 +7,7 @@ import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
 class CustomMessage {
     static className = "CustomMessage";
     static mapName2Callback = new Map(); // messageName -> callback
-    static _listeningViewer = null;
+    static bCreateListener = false;
 
     /**
      * 从Web端发送自定义消息到UE
@@ -35,10 +35,10 @@ class CustomMessage {
     static MessageToWeb(messageName, callback) {
         CustomMessage.mapName2Callback.set(messageName, callback);
 
-        if (CustomMessage._listeningViewer !== window.viewer) {
-            CustomMessage._listeningViewer = window.viewer;
+        if (!CustomMessage.bCreateListener) {
+            CustomMessage.bCreateListener = true;
             window.viewer.addResponseEventListener(CustomMessage.className, (json) => {
-                let obj = parseUEMessage(json);
+                let obj = JSON.parse(json);
                 if (obj.class != CustomMessage.className) return;
                 if (obj.function != "emitMessage") return;
 

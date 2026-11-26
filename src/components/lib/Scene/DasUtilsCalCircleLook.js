@@ -12,7 +12,7 @@ class DasUtilsCalCircleLook {
      * @param {Array} posTargetLLH - 目标点[经度,纬度,高度(米)]
      * @param {Array} [posCircleLLH=[0,0,0]] - 圆心[经度,纬度,高度(米)]，传零向量时取Georeference原点
      * @param {number} [distance=100000] - 相机到目标点的距离（UE厘米）
-     * @returns {Promise<{locationLLH?: number[], rotationLLH?: {pitch:number,yaw:number,roll:number}}>} 相机位姿，失败返回空对象
+     * @returns {Promise<object>} {locationLLH:[经度,纬度,高度], rotationLLH:{pitch,yaw,roll}}，失败返回{}
      */
     static async calcLookTransform(posTargetLLH, posCircleLLH = [0, 0, 0], distance = 100000) {
         let result = {};
@@ -35,7 +35,7 @@ class DasUtilsCalCircleLook {
     /**
      * 用已配置的圆心和距离计算相机位姿
      * @param {Array} posTargetLLH - 目标点[经度,纬度,高度(米)]
-     * @returns {Promise<{locationLLH?: number[], rotationLLH?: {pitch:number,yaw:number,roll:number}}>} 相机位姿，失败返回空对象
+     * @returns {Promise<object>} {locationLLH:[经度,纬度,高度], rotationLLH:{pitch,yaw,roll}}，失败返回{}
      */
     static async calcLookTransformByConfig(posTargetLLH) {
         let result = {};

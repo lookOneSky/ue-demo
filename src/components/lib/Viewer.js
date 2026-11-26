@@ -1,7 +1,7 @@
 import {
 	Config,
+	EventEmitter,
 	Flags,
-	MessageDirection,
 	NumericParameters,
 	OptionParameters,
 	TextParameters,
@@ -14,7 +14,7 @@ import {
 } from "@epicgames-ps/lib-pixelstreamingfrontend-ui-ue5.3"
 
 //wyc封装的接口
-class Viewer extends EventTarget {
+class Viewer extends EventEmitter {
 	constructor({
 		InputControllers = [],
 		onInitialize = () => {},
@@ -61,10 +61,6 @@ class Viewer extends EventTarget {
 		
 
 		const stream = new PixelStreaming(config)
-		// Newer streamers advertise these outgoing XR messages during negotiation.
-		for (const name of ["XREyeViews", "XRButtonTouchReleased"]) {
-			if (!stream.toStreamerHandlers.has(name)) stream.registerMessageHandler(name, MessageDirection.ToStreamer)
-		}
 
 		const settingsPanelConfig = hideDefaultUI
 			? {
@@ -100,11 +96,6 @@ class Viewer extends EventTarget {
 			}
 		})
 
-		this.channelOpen = false
-		stream.addEventListener('dataChannelOpen', () => { this.channelOpen = true })
-		for (const event of ['dataChannelClose', 'webRtcDisconnected', 'webRtcFailed', 'webRtcConnecting']) {
-			stream.addEventListener(event, () => { this.channelOpen = false })
-		}
 		this.stream = stream
 		this.application = application
 		this.responseCallbackMap = new Map()
@@ -121,7 +112,9 @@ class Viewer extends EventTarget {
 				message = response
 			}
 
-			for (const callback of this.responseCallbackMap.get(message?.EventName) || []) {
+			for (const callback of this.getOrCreateResponseCallbackSet(
+				message.EventName
+			)) {
 				callback(message)
 			}
 		})
@@ -159,7 +152,7 @@ class Viewer extends EventTarget {
 		return this.responseCallbackMap.get(key)
 	}
 
-	addNamedEventListener(eventName, callback) {
+	addResponseEventListener(eventName, callback) {
 		const eventSet = this.getOrCreateResponseCallbackSet(eventName)
 		eventSet.add(callback)
 
@@ -169,36 +162,28 @@ class Viewer extends EventTarget {
 	}
 
 	waitResponseOnce(eventName, callback) {
-		const cancel = this.addNamedEventListener(eventName, (params) => {
-			cancel()
+		let canceler = this.addResponseEventListener(eventName, (params) => {
 			callback(params)
+			canceler()
+			canceler = null
 		})
-		return cancel
 	}
 
 	waitResponseUntil(eventName, boolExpression) {
-		const cancel = this.addNamedEventListener(eventName, (params) => {
-			if (boolExpression(params)) cancel()
+		let canceler = this.addResponseEventListener(eventName, (params) => {
+			if (boolExpression(params)) {
+				canceler()
+				canceler = null
+			}
 		})
-		return cancel
 	}
 
 	sendMessage(message) {
-		const sent = this.channelOpen && this.stream.emitUIInteraction(message)
-		if (message?.commandID) {
-			this.dispatchEvent(new CustomEvent('ueCommand', { detail: { ...message, sent } }))
-		}
-		return sent
-	}
-
-	setKeyboardInput(enabled) {
-		if (this.stream.config.isFlagEnabled(Flags.KeyboardInput) !== enabled) {
-			this.stream.config.setFlagEnabled(Flags.KeyboardInput, enabled)
-		}
+		this.stream.emitUIInteraction(message)
 	}
 
 	onResponse(callback) {
-		this.stream.addResponseEventListener("onResponse", callback)
+		this.stream.addResponseEventListener("handle_responses", callback)
 	}
 
 	addResponseEventListener(strKye, callback)
@@ -212,8 +197,6 @@ class Viewer extends EventTarget {
 	}
 
 	dispose() {
-		this.channelOpen = false
-		this.dispatchEvent(new Event("dispose"))
 		if (this.rootElement && this.rootElement.parentNode) {
 			this.rootElement.parentNode.removeChild(this.rootElement)
 		}

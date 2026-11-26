@@ -1,4 +1,4 @@
-import { ExcuteUEFun, isUESuccess, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * DasGizmosOperateTool JavaScript接口类
@@ -39,8 +39,8 @@ class DasGizmosOperateToolClass {
         };
 
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "setOperateLayer", param);
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "setOperateLayer", param);
+            return true;
         } catch (error) {
             console.error('设置操作图层失败:', error);
             return false;
@@ -58,8 +58,8 @@ class DasGizmosOperateToolClass {
         };
 
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "setTransform", param);
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "setTransform", param);
+            return true;
         } catch (error) {
             console.error('设置变换失败:', error);
             return false;
@@ -77,8 +77,8 @@ class DasGizmosOperateToolClass {
         };
 
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "setOperateType", param);
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "setOperateType", param);
+            return true;
         } catch (error) {
             console.error('设置操作类型失败:', error);
             return false;
@@ -96,8 +96,8 @@ class DasGizmosOperateToolClass {
         };
 
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "setRotateDegreeOnePixel", param);
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "setRotateDegreeOnePixel", param);
+            return true;
         } catch (error) {
             console.error('设置旋转度数每像素失败:', error);
             return false;
@@ -110,8 +110,8 @@ class DasGizmosOperateToolClass {
      */
     async autoRotate() {
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "autoRotate", {});
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "autoRotate", {});
+            return true;
         } catch (error) {
             console.error('自动旋转失败:', error);
             return false;
@@ -124,8 +124,8 @@ class DasGizmosOperateToolClass {
      */
     async recoverOperate() {
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "recoverOperate", {});
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "recoverOperate", {});
+            return true;
         } catch (error) {
             console.error('恢复操作失败:', error);
             return false;
@@ -145,8 +145,8 @@ class DasGizmosOperateToolClass {
         };
 
         try {
-            const reply = await ExcuteUEFun.excuteUEFunction(this.className, "setAxisColor", param);
-            return isUESuccess(reply);
+            await ExcuteUEFun.excuteUEFunction(this.className, "setAxisColor", param);
+            return true;
         } catch (error) {
             console.error('设置轴颜色失败:', error);
             return false;
@@ -161,20 +161,24 @@ class DasGizmosOperateToolClass {
     async getAxisColor(axis) {
         let result = [1, 1, 1, 1];
         await ExcuteUEFun.excuteUEFunction(this.className, "getAxisColor", { axis: axis }, (json) => {
-            if (!Array.isArray(json.color) || json.color.length < 3) {
-                throw new Error("UE 未返回有效的坐标轴颜色");
-            }
             result = json.color;
         });
         return result;
     }
 
-    addCallBack(fun) {
+    addCallBack(fun){
         window.viewer.addResponseEventListener(this.className, (json) => {
-            const response = parseUEMessage(json);
-            if (response.class !== this.className || response.function !== "emitMessage" || response.messageName !== "transform") return;
-            const message = typeof response.message === "string" ? parseUEMessage(response.message) : response.message;
-            if (message?.transform) fun?.(message);
+            let obj = JSON.parse(json);
+
+            if(obj.class == this.className)
+            {
+                if(fun != null)
+                {
+                    let message = obj.message;
+                    let messageObj = JSON.parse(message);
+                    fun(messageObj);
+                }
+            }
         });
     }
 
@@ -185,4 +189,4 @@ class DasGizmosOperateToolClass {
 
 const DasGizmosOperateTool = new DasGizmosOperateToolClass(); // 全局实例，保持原有调用方式
 
-export { DasGizmosOperateTool };
+export { DasGizmosOperateTool }; 

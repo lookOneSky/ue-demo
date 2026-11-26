@@ -1,4 +1,4 @@
-import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 import { DasToolMeasurementBase } from "./DasToolMeasurementBase.js";
 
 /**
@@ -10,7 +10,7 @@ class DasToolMeasurementPoint extends DasToolMeasurementBase {
 
     /**
      * 激活单点拾取工具
-     * @param {function} [callback] - 操作完成后的回调函数
+     * @param {function} callback - 操作完成后的回调函数
      */
     async setToCurrent(callback) {
         await ExcuteUEFun.excuteUEFunction(this.className, "setToCurrent", {}, callback);
@@ -18,7 +18,7 @@ class DasToolMeasurementPoint extends DasToolMeasurementBase {
 
     /**
      * 清空所有拾取点
-     * @param {function} [callback] - 操作完成后的回调函数
+     * @param {function} callback - 操作完成后的回调函数
      */
     async clearAllPoints(callback) {
         await ExcuteUEFun.excuteUEFunction(this.className, "clearAllPoints", {}, callback);
@@ -26,7 +26,7 @@ class DasToolMeasurementPoint extends DasToolMeasurementBase {
 
     /**
      * 获取当前拾取点的 LLH 坐标数组
-     * @param {function} [callback] - 回调，参数为 {measurementPointsLLH: [{longitude, latitude, height}]}
+     * @param {function} callback - 回调，参数为 {measurementPointsLLH: [{longitude, latitude, height}]}
      */
     async getPointsLLH(callback) {
         await ExcuteUEFun.excuteUEFunction(this.className, "getPointsLLH", {}, callback);
@@ -38,12 +38,11 @@ class DasToolMeasurementPoint extends DasToolMeasurementBase {
      */
     addCallBack(fun) {
         window.viewer.addResponseEventListener(this.className, (json) => {
-            let obj = parseUEMessage(json);
-            if (obj.class !== this.className) return;
-            if (obj.function === "onMeasurementPointUpdate") fun?.(obj);
-            if (obj.function === "emitMessage" && obj.messageName === "onMeasurementPointUpdate") {
-                const point = parseUEMessage(obj.message);
-                if ([point.longitude, point.latitude, point.height].every(Number.isFinite)) fun?.(point);
+            let obj = JSON.parse(json);
+            if (obj.class == this.className) {
+                if (fun != null) {
+                    fun(obj);
+                }
             }
         });
     }

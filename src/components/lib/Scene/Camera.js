@@ -1,4 +1,4 @@
-import { ExcuteUEFun, isUESuccess } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * JavaScript wrapper for the UWebCamera UE component
@@ -20,14 +20,14 @@ class Camera {
             duration: duration
         };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "flyToCameraPositionByName", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
     
     /**
      * 获取当前相机的经纬度高度和欧拉角
-     * @returns {Promise<{locationLLH?: [number,number,number], rotationLLH?: {pitch:number,yaw:number,roll:number}}>} 相机位置与旋转
+     * @returns {Promise<object>} 包含locationLLH和rotationLLH的对象
      */
     static async getCameraFlyInfoLLH() {
         let result = {};
@@ -54,7 +54,7 @@ class Camera {
      * @param {number} [addHeightScale=1.0] - 飞行时增加高度的缩放系数
      * @returns {Promise<boolean>} 操作是否成功
      */
-    static async flyToLocationLLH(locationLLH, rotationLLH, duration = 5.0, addHeightScale = 1.0) {
+    static async flyToLocationLLH(locationLLH, rotationLLH, duration = 5.0, addHeightScale = 100) {
         let result = false;
         let param = {
             locationLLH: locationLLH,
@@ -63,7 +63,7 @@ class Camera {
             addHeightScale: addHeightScale
         };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "flyToLocationLLH", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -79,37 +79,20 @@ class Camera {
      * @param {number} [extraViewHeight=0.0] - 在地形高度上额外叠加的观察高度（米）
      * @returns {Promise<boolean>} 操作是否成功
      */
-    static async flyToLocationLongLat(longitude, latitude, rotationYaw = 0.0, rotationPitch = -30.0, duration = 5.0, addHeightScale = 1.0, extraViewHeight = 0.0) {
+    static async flyToLocationLongLat(longitude, latitude, rotationYaw = 0.0, rotationPitch = -30.0, duration = 5.0, addHeightScale = 1.0) {
         let result = false;
         let param = {
             longitude: longitude,
             latitude: latitude,
             rotationYaw: rotationYaw,
             rotationPitch: rotationPitch,
-            extraViewHeight: extraViewHeight,
             duration: duration,
             addHeightScale: addHeightScale
         };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "flyToLocationLongLat", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
-    }
-
-    /**
-     * 飞行到目标点并设置其在屏幕上的像素偏移
-     * @param {number[]} targetLLH - 目标点经度、纬度、高度
-     * @param {number} heightToTarget - 相机高出目标点的米数
-     * @param {number} pitch - 相机俯仰角（度）
-     * @param {number[]} offsetScreen - 屏幕偏移像素，向右、向下为正
-     * @param {number} [duration=5] - 飞行时长（秒）
-     * @param {number} [addHeightScale=1] - 飞行高度缩放系数
-     * @returns {Promise<boolean>} 是否成功发起飞行
-     */
-    static async flyToTargetLLHWithOffsetScreen(targetLLH, heightToTarget, pitch, offsetScreen, duration = 5, addHeightScale = 1) {
-        const param = { targetLLH, heightToTarget, pitch, offsetScreen, duration, addHeightScale };
-        const reply = await ExcuteUEFun.excuteUEFunction(Camera.className, "flyToTargetLLHWithOffsetScreen", param);
-        return isUESuccess(reply);
     }
 
     /**
@@ -123,7 +106,7 @@ class Camera {
             forbitAddHeight: forbitAddHeight
         };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "forbitAddHeightOnFly", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -154,7 +137,7 @@ class Camera {
             disableBoundCheck: disableBoundCheck
         };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setDisableBoundCheck", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -183,7 +166,7 @@ class Camera {
         let result = false;
         let param = { enable: enable };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setPawnEnable", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -212,7 +195,7 @@ class Camera {
         let result = false;
         let param = { mouseWheelSpeed: mouseWheelSpeed };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setMouseWheelSpeed", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -241,7 +224,7 @@ class Camera {
         let result = false;
         let param = { forceUseNearTranslationMode: forceUseNearTranslationMode };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setForceUseNearTranslationMode", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -275,7 +258,7 @@ class Camera {
             param.canIntersect = canIntersect;
         }
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setBoundingSphere", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -290,7 +273,7 @@ class Camera {
 
     /**
      * 获取相机水平圆形限制范围
-     * @returns {Promise<{centerLLH: number[], radius: number, canIntersect: boolean}>} 球形边界设置
+     * @returns {Promise<object>} { centerLLH: [经度, 纬度, 高度], radius: 米, canIntersect: boolean }
      */
     static async getBoundingSphere() {
         let result = {};
@@ -312,7 +295,7 @@ class Camera {
         let result = false;
         let param = { maxHeight: maxHeight };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setMaxHeight", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }
@@ -341,7 +324,7 @@ class Camera {
         let result = false;
         let param = { disableHeight: disableHeight };
         await ExcuteUEFun.excuteUEFunction(Camera.className, "setDisableHeight", param, function (json) {
-            result = isUESuccess(json);
+            result = true;
         });
         return result;
     }

@@ -1,4 +1,4 @@
-import { ExcuteUEFun, isUESuccess } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 /**
  * JavaScript wrapper for the UWebLevelSequenceControl UE component
@@ -58,7 +58,7 @@ class LevelSequenceControl {
         };
 
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "setSequence", param, function (json) {
-            result.success = isUESuccess(json);
+            result.success = json.success;
             result.duration = json.duration || 0;
         });
         return result;
@@ -75,7 +75,7 @@ class LevelSequenceControl {
             resetToStart: resetToStart
         };
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "playSequence", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
@@ -88,7 +88,7 @@ class LevelSequenceControl {
         let result = false;
         let param = {};
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "pauseSequence", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
@@ -101,7 +101,7 @@ class LevelSequenceControl {
         let result = false;
         let param = {};
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "resumeSequence", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
@@ -114,14 +114,14 @@ class LevelSequenceControl {
         let result = false;
         let param = {};
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "stopSequence", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
     
     /**
      * 获取序列状态
-     * @returns {Promise<{state: string, currentTime: number, duration: number}>} 播放状态和当前时间信息
+     * @returns {Promise<object>} 播放状态和当前时间信息
      */
     static async getStatus() {
         let result = {
@@ -131,9 +131,9 @@ class LevelSequenceControl {
         };
         let param = {};
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "getStatus", param, function (json) {
-            result.state = json.state || 'unknown';
-            result.currentTime = json.currentTime ?? 0;
-            result.duration = json.duration ?? 0;
+            result.state = json.state;
+            result.currentTime = json.currentTime;
+            result.duration = json.duration;
         });
         return result;
     }
@@ -157,7 +157,7 @@ class LevelSequenceControl {
             timeInSeconds: timeInSeconds
         };
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "setCurrentTime", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }
@@ -186,7 +186,7 @@ class LevelSequenceControl {
             playRate: playRate
         };
         await ExcuteUEFun.excuteUEFunction(LevelSequenceControl.className, "setPlayRate", param, function (json) {
-            result = isUESuccess(json);
+            result = json.success;
         });
         return result;
     }

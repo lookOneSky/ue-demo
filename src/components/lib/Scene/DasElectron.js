@@ -1,8 +1,8 @@
-import { ExcuteUEFun, parseUEMessage } from "../ExcuteUEFun.js";
+import { ExcuteUEFun } from "../ExcuteUEFun.js";
 
 class DasElectron {
     static className = "DasElectron";
-    static _listeningViewer = null;
+    static _bListenerCreated = false;
 
     /// 显示UE程序窗口
     static async showUEWindow() {
@@ -58,13 +58,13 @@ class DasElectron {
 
     /// 监听UE发来的DasElectron消息，转发IsPassThroughByCommand到Electron
     static initListener() {
-        if (DasElectron._listeningViewer === window.viewer) return;
-        DasElectron._listeningViewer = window.viewer;
+        if (DasElectron._bListenerCreated) return;
+        DasElectron._bListenerCreated = true;
         window.viewer.addResponseEventListener(DasElectron.className, (json) => {
-            const obj = parseUEMessage(json);
+            const obj = JSON.parse(json);
             if (obj.class !== DasElectron.className || obj.function !== 'emitMessage') return;
             if (obj.messageName === 'IsPassThroughByCommand') {
-                const data = parseUEMessage(obj.message);
+                const data = JSON.parse(obj.message);
                 DasElectron.SetElectronCheckMousePassThrough(data.IsPassThroughByCommand);
             }
         });
