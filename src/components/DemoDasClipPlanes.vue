@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref } from 'vue'
 import { DasClipPlanes } from './lib/Scene/DasClipPlanes.js'
@@ -19,7 +20,8 @@ const syncPlanes = async () => {
 // 激活裁剪平面取点工具
 const startTool = async () => {
   try {
-    await tool.setToCurrent(() => { isToolActive.value = true })
+    await requestUE(tool.className, 'setToCurrent')
+    isToolActive.value = true
   } catch (error) {
     console.error('激活取点工具失败:', error)
   }
@@ -28,7 +30,8 @@ const startTool = async () => {
 // 停止裁剪平面取点工具
 const stopTool = async () => {
   try {
-    await tool.finishTool(() => { isToolActive.value = false })
+    await requestUE(tool.className, 'finishTool')
+    isToolActive.value = false
   } catch (error) {
     console.error('停止取点工具失败:', error)
   }
@@ -37,7 +40,7 @@ const stopTool = async () => {
 // 清空已取的裁剪点和方向点
 const clearToolPoints = async () => {
   try {
-    await tool.clearPoints()
+    await requestUE(tool.className, 'clearPoints')
   } catch (error) {
     console.error('清空取点失败:', error)
   }
@@ -111,7 +114,7 @@ const queryClipEnable = async () => {
 
 // 卸载时停止取点工具（切换 Tab 时组件会被 v-if 卸载）
 onViewerSessionLeave(async () => {
-  if (isToolActive.value) await tool.finishTool()
+  if (isToolActive.value) await requestUE(tool.className, 'finishTool')
 })
 </script>
 

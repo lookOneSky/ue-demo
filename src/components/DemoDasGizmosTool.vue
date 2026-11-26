@@ -4,6 +4,7 @@ import DemoDasGizmosAxisColors from './DemoDasGizmosAxisColors.vue'
 import { DasCarLayer } from "./lib/Layer/DasCarLayer.js"
 import { DasGizmosOperateTool } from "./lib/Tool/DasGizmosOperateTool.js"
 import { DasGroupLayer } from "./lib/Layer/DasGroupLayer.js"
+import { onUEEvent, requestUE } from '../utils/demoRpc.js'
 
 // 当前车辆图层
 const currentCarLayer = ref<any>(null)
@@ -14,6 +15,7 @@ const ready = computed(() => Boolean(getShareData?.('viewerReady')))
 const busy = ref(false)
 const showAxisColors = ref(false)
 let controlsBound = false
+let stopTransformListener: (() => void) | undefined
 
 // 固定的车辆参数
 const fixedCarParams = {
@@ -156,9 +158,9 @@ const createCarLayer = async () => {
   try {
     if (currentCarLayer.value) return
     const carLayer = await DasCarLayer.createInstance(fixedCarParams)
-    if (!carLayer) return
+    if (!carLayer?.id) return
     if (!mounted) {
-      if (owner && owner === getShareData?.('viewerSession')) await carLayer.removeInstance()
+      if (owner && owner === getShareData?.('viewerSession')) await carLayer.removeInstance(undefined)
       return
     }
     currentCarLayer.value = carLayer
@@ -190,9 +192,12 @@ const startEditMode = async () => {
     if (!currentCarLayer.value || controlsBound) return
     const layerInfo = currentCarLayer.value.writeObjectInfo()
     controlsBound = true
-    if (!await DasGizmosOperateTool.setOperateLayer(layerInfo, true) || !mounted) return
-    if (!await DasGizmosOperateTool.setOperateType(gizmosParams.operateType) || !mounted) return
-    if (!await DasGizmosOperateTool.setRotateDegreeOnePixel(gizmosParams.rotateDegreePerPixel) || !mounted) return
+    await requestUE(DasGizmosOperateTool.className, 'setOperateLayer', { layer: layerInfo, saveLast: true })
+    if (!mounted) return
+    await requestUE(DasGizmosOperateTool.className, 'setOperateType', { type: gizmosParams.operateType })
+    if (!mounted) return
+    await requestUE(DasGizmosOperateTool.className, 'setRotateDegreeOnePixel', { value: gizmosParams.rotateDegreePerPixel })
+    if (!mounted) return
     startTransformListener()
     isEditMode.value = true
   } catch (error) {
@@ -206,7 +211,8 @@ const startEditMode = async () => {
 const stopEditMode = async () => {
   if (!controlsBound) return
   controlsBound = false
-  if (isEditMode.value) DasGizmosOperateTool.removeCallBack()
+  stopTransformListener?.()
+  stopTransformListener = undefined
   isEditMode.value = false
   showAxisColors.value = false
   await DasGizmosOperateTool.setOperateType(0)
@@ -295,8 +301,8 @@ const recoverOperate = async () => {
 
 // 拖动场景中的 Gizmos 时，将回传的数组同步到数值编辑器。
 const startTransformListener = () => {
-  DasGizmosOperateTool.addCallBack(({ transform }) => {
-    if (!transform) return
+  stopTransformListener = onUEEvent(DasGizmosOperateTool.className, 'transform', ({ transform }) => {
+    if (!mounted || !transform) return
     readVehicleTransform(transform)
   })
 }
@@ -332,35 +338,26 @@ async function runAction(action: () => Promise<unknown>) {
 
 async function removeCarLayer() {
   const car = currentCarLayer.value
-  currentCarLayer.value = null
-  try {
-    await stopEditMode()
-    await car?.removeInstance()
-  } catch (error) {
-    if (mounted) currentCarLayer.value = car
-    throw error
-  }
+  await stopEditMode()
+  if (!car) return
+  await requestUE(car.className, 'removeInstance', { id: car.id })
+  if (currentCarLayer.value === car) currentCarLayer.value = null
 }
 
 async function clearAll() {
   await stopEditMode()
   if (!mounted) return
   const root = await DasGroupLayer.getRoot() as InstanceType<typeof DasGroupLayer> | null
-  if (!root || !mounted) return
-  const car = currentCarLayer.value
+  if (!root?.id || !mounted) return
+  await requestUE(root.className, 'removeAllLayer', { id: root.id })
   currentCarLayer.value = null
-  try {
-    await root.removeAllLayer()
-  } catch (error) {
-    if (mounted) currentCarLayer.value = car
-    throw error
-  }
 }
 
 onBeforeUnmount(() => {
   mounted = false
   const sameSession = owner && owner === getShareData?.('viewerSession')
-  if (!sameSession && isEditMode.value && window.viewer) DasGizmosOperateTool.removeCallBack()
+  stopTransformListener?.()
+  stopTransformListener = undefined
   if (sameSession) removeCarLayer().catch(error => console.error('移除示例车辆失败:', error))
 })
 </script>

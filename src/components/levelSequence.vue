@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { LevelSequenceControl } from './lib/Scene/LevelSequenceControl.js'; // 导入序列控制
+import { LevelSequenceControl } from '../utils/sequencePlayback'; // 导入序列控制
 
 // LevelSequenceControl功能测试
 const sequencePath = ref("/Game/C_WDS/WDS_Video/Z_Video_S/WDS_Z_LHJD.WDS_Z_LHJD");

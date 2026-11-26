@@ -50,7 +50,7 @@ const operation = computed(() => {
   const lines = source.value.split('\n')
   const startPattern = /^(?:const\s+\w+\s*=\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{|(?:async\s+)?function\s+\w+\s*\([^)]*\)\s*\{)\s*$/
   const watchPattern = /^watch\(.*=>\s*\{\s*$/
-  const sdkCall = /\b(?:Das\w+|Camera|Weather|Scene|LevelSequenceControl|tool|\w+Layer\.value)\.\w+\s*\(/
+  const sdkCall = /\b(?:requestUE|(?:Das\w+|Camera|Weather|Scene|LevelSequenceControl|tool|\w+Layer\.value)\.\w+)\s*\(/
   for (let start = 0; start < lines.length; start++) {
     const watcher = watchPattern.test(lines[start])
     if (!watcher && !startPattern.test(lines[start])) continue

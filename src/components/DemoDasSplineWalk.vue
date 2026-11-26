@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref } from 'vue'
 import { DasSpline } from "./lib/Layer/DasSplineLayer.js"
@@ -31,7 +32,7 @@ const createSplineLayer = async () => {
       }
     })
 
-    if (!splineLayer) return
+    if (!splineLayer?.id) throw new Error('UE 未返回新建图层的 ID')
     createdLayers.add(splineLayer)
     currentSplineLayer.value = splineLayer
     isSplineBound.value = false
@@ -55,8 +56,8 @@ const startEditTool = async () => {
       await stopMove()
     }
 
-    await DasPointEditTool.editLayer(currentSplineLayer.value)
-    await DasPointEditTool.setToCurrent()
+    await requestUE(DasPointEditTool.className, 'editLayer', { layer: currentSplineLayer.value.writeObjectInfo() })
+    await requestUE(DasPointEditTool.className, 'setToCurrent')
 
     isEditMode.value = true
     isSplineBound.value = false
@@ -70,7 +71,7 @@ const startEditTool = async () => {
 
 const stopEditTool = async () => {
   try {
-    await DasPointEditTool.finishTool()
+    await requestUE(DasPointEditTool.className, 'finishTool')
     isEditMode.value = false
     actionMessage.value = '点编辑工具已停止'
     console.log('样条行走 Demo 点编辑工具已停止')
@@ -184,7 +185,7 @@ const clearAll = async () => {
     }
 
     for (const layer of [...createdLayers].reverse()) {
-      await layer.removeInstance()
+      await requestUE(layer.className, 'removeInstance', { id: layer.id })
       createdLayers.delete(layer)
     }
 
@@ -202,7 +203,7 @@ const clearAll = async () => {
 }
 onViewerSessionLeave(async () => {
   if (isMoving.value) await DasSplineWalk.setEnableAutoMove(false)
-  if (isEditMode.value) await DasPointEditTool.finishTool()
+  if (isEditMode.value) await requestUE(DasPointEditTool.className, 'finishTool')
 })
 </script>
 

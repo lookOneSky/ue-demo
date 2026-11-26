@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasPolylineTool } from "./lib/Tool/DasPolylineTool.js"
@@ -65,7 +66,7 @@ const hexToRGBA = (hex: string) => {
 // 启动工具
 const startTool = async () => {
   try {
-    await DasPolylineTool.setToCurrent()
+    await requestUE(DasPolylineTool.className, 'setToCurrent')
     
     // 设置工具为曲线模式
     await DasPolylineTool.setSplinePoint({
@@ -87,8 +88,8 @@ const startTool = async () => {
 // 结束工具
 const stopTool = async () => {
   try {
+    await requestUE(DasPolylineTool.className, 'finishTool')
     isToolActive.value = false
-    await DasPolylineTool.finishTool()
     console.log('路径绘制工具已停止')
   } catch (error) {
     console.error('停止路径绘制工具失败:', error)
@@ -111,7 +112,7 @@ const createRoute = async () => {
     
     // 创建路线图层
     const routeLayer = await DasPolylineLayer.createInstance({ "param": toolData })
-    if (!routeLayer) return
+    if (!routeLayer?.id) throw new Error('UE 未返回新建图层的 ID')
     createdLayers.add(routeLayer)
     currentRouteLayer.value = routeLayer
     hasRoute.value = !!routeLayer
@@ -145,7 +146,7 @@ const createCar = async () => {
     
     // 创建车辆图层
     const carLayer = await DasCarLayer.createInstance(params)
-    if (!carLayer) return
+    if (!carLayer?.id) throw new Error('UE 未返回新建图层的 ID')
     createdLayers.add(carLayer)
     currentCarLayer.value = carLayer
     
@@ -245,7 +246,7 @@ const clearAll = async () => {
     }
     
     for (const layer of [...createdLayers].reverse()) {
-      await layer.removeInstance()
+      await requestUE(layer.className, 'removeInstance', { id: layer.id })
       createdLayers.delete(layer)
     }
     
@@ -287,7 +288,7 @@ const getCarData = async () => {
   }
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return DasPolylineTool.finishTool()
+  if (isToolActive.value) return requestUE(DasPolylineTool.className, 'finishTool')
 })
 </script>
 

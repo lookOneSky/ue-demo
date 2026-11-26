@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { computed, ref } from 'vue'
 import { DasPointEditTool } from './lib/Tool/DasPointEditTool.js'
@@ -50,10 +51,10 @@ const buildLayerConfig = () => {
 }
 
 const createLayer = async () => {
-  await DasPointEditTool.finishTool()
+  await requestUE(DasPointEditTool.className, 'finishTool')
   isToolActive.value = false
   const result = await DasPolygonLayer.createInstance({ param: buildLayerConfig() })
-  if (result) {
+  if (result?.id) {
     currentLayer.value = result
     currentLayerId.value = result.id
     layerVisible.value = true
@@ -67,13 +68,13 @@ const createLayer = async () => {
 
 const editLayer = async () => {
   if (!currentLayer.value) return
-  if (await DasPointEditTool.editLayer(currentLayer.value)) {
-    isToolActive.value = await DasPointEditTool.setToCurrent()
-  }
+  await requestUE(DasPointEditTool.className, 'editLayer', { layer: currentLayer.value.writeObjectInfo() })
+  await requestUE(DasPointEditTool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 const stopTool = async () => {
-  await DasPointEditTool.finishTool()
+  await requestUE(DasPointEditTool.className, 'finishTool')
   isToolActive.value = false
 }
 
@@ -85,14 +86,14 @@ const locateLayer = async () => {
 const toggleLayerVisibility = async () => {
   if (!currentLayer.value) return
   const visible = !layerVisible.value
-  await currentLayer.value.setVisible(visible)
+  await requestUE(currentLayer.value.className, 'setVisible', { id: currentLayer.value.id, visible })
   layerVisible.value = visible
 }
 
 const deleteLayer = async () => {
   if (!currentLayer.value) return
   if (isToolActive.value) await stopTool()
-  await currentLayer.value.removeInstance()
+  await requestUE(currentLayer.value.className, 'removeInstance', { id: currentLayer.value.id })
   currentLayerId.value = ''
   currentLayer.value = null
   layerVisible.value = true
@@ -163,7 +164,7 @@ const updateAll = async () => {
   await currentLayer.value.updateAll(buildLayerConfig())
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return DasPointEditTool.finishTool()
+  if (isToolActive.value) return requestUE(DasPointEditTool.className, 'finishTool')
 })
 </script>
 

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { LevelSequenceControl } from './lib/Scene/LevelSequenceControl.js'; // 导入序列控制
+import { LevelSequenceControl } from '../utils/sequencePlayback'; // 导入序列控制
 
 defineProps<{ msg?: string }>()
 const form1 = ref({ one: false, two: false, three: false, });

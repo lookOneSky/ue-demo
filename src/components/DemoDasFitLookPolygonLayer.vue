@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref } from 'vue'
 import { DasPointEditTool } from './lib/Tool/DasPointEditTool.js'
@@ -36,12 +37,13 @@ const buildLayerConfig = () => ({
 
 // 启动工具（绘制新点）
 const startTool = async () => {
-  isToolActive.value = await DasPointEditTool.setToCurrent()
+  await requestUE(DasPointEditTool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 // 停止工具
 const stopTool = async () => {
-  await DasPointEditTool.finishTool()
+  await requestUE(DasPointEditTool.className, 'finishTool')
   isToolActive.value = false
 }
 
@@ -51,7 +53,7 @@ const createLayer = async () => {
   if (isToolActive.value) await stopTool()
   const param = { ...buildLayerConfig(), points }
   const result = await DasFitLookPolygonLayer.createInstance({ param })
-  if (result) {
+  if (result?.id) {
     currentLayer.value = result
     currentLayerId.value = result.id
     layerVisible.value = true
@@ -62,9 +64,9 @@ const createLayer = async () => {
 const editLayer = async () => {
   if (!currentLayer.value) return
   await currentLayer.value.setUseCameraCalNormal(layerParams.value.useCameraCalNormal)
-  if (await DasPointEditTool.editLayer(currentLayer.value)) {
-    isToolActive.value = await DasPointEditTool.setToCurrent()
-  }
+  await requestUE(DasPointEditTool.className, 'editLayer', { layer: currentLayer.value.writeObjectInfo() })
+  await requestUE(DasPointEditTool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 // 复制当前图层（顶点与属性取自当前图层）
@@ -84,7 +86,7 @@ const locateLayer = async () => {
 const toggleLayerVisibility = async () => {
   if (!currentLayer.value) return
   const visible = !layerVisible.value
-  await currentLayer.value.setVisible(visible)
+  await requestUE(currentLayer.value.className, 'setVisible', { id: currentLayer.value.id, visible })
   layerVisible.value = visible
 }
 
@@ -92,7 +94,7 @@ const toggleLayerVisibility = async () => {
 const deleteLayer = async () => {
   if (!currentLayer.value) return
   if (isToolActive.value) await stopTool()
-  await currentLayer.value.removeInstance()
+  await requestUE(currentLayer.value.className, 'removeInstance', { id: currentLayer.value.id })
   currentLayerId.value = ''
   currentLayer.value = null
 }
@@ -145,7 +147,7 @@ const updateAll = async () => {
   await currentLayer.value.updateAll(buildLayerConfig())
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return DasPointEditTool.finishTool()
+  if (isToolActive.value) return requestUE(DasPointEditTool.className, 'finishTool')
 })
 </script>
 

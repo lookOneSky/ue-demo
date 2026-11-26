@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { computed, ref } from 'vue'
 import { DasToolRollerBlind } from './lib/Tool/DasToolRollerBlind.js'
@@ -28,16 +29,15 @@ const rightLayerStatus = computed(() => rightLayer.value ? '已创建' : '未创
 const bindCompareLayers = async () => {
   if (!leftLayer.value || !rightLayer.value) return
 
-  await tool.setRollerBlindRight(leftLayer.value, false)
-  await tool.setRollerBlindRight(rightLayer.value, true)
+  await requestUE(tool.className, 'setRollerBlindRight', { layer: leftLayer.value.writeObjectInfo(), rollerBlindRight: false })
+  await requestUE(tool.className, 'setRollerBlindRight', { layer: rightLayer.value.writeObjectInfo(), rollerBlindRight: true })
   actionMessage.value = '左右卷帘模型已绑定'
 }
 
 const startTool = async () => {
   try {
-    await tool.setToCurrent(() => {
-      isToolActive.value = true
-    })
+    await requestUE(tool.className, 'setToCurrent')
+    isToolActive.value = true
     if (hasCompareLayers.value) {
       await bindCompareLayers()
     }
@@ -53,9 +53,8 @@ const startTool = async () => {
 
 const stopTool = async () => {
   try {
-    await tool.finishTool(() => {
-      isToolActive.value = false
-    })
+    await requestUE(tool.className, 'finishTool')
+    isToolActive.value = false
     actionMessage.value = '卷帘工具已停止'
   } catch (error) {
     console.error('停止卷帘对比工具失败:', error)
@@ -67,7 +66,7 @@ const applyPosition = async () => {
   if (!isToolActive.value) return
 
   try {
-    await tool.setRollerBlindPosition(rollerBlindPosition.value)
+    await requestUE(tool.className, 'setRollerBlindPosition', { rollerBlindPosition: rollerBlindPosition.value })
     actionMessage.value = `卷帘位置已更新到 ${rollerBlindPosition.value.toFixed(2)}`
   } catch (error) {
     console.error('设置卷帘位置失败:', error)
@@ -96,14 +95,14 @@ const clearCompareLayers = async () => {
   isClearingModels.value = true
   try {
     if (leftLayer.value) {
-      await leftLayer.value.removeInstance()
+      await requestUE(leftLayer.value.className, 'removeInstance', { id: leftLayer.value.id })
+      leftLayer.value = null
     }
     if (rightLayer.value) {
-      await rightLayer.value.removeInstance()
+      await requestUE(rightLayer.value.className, 'removeInstance', { id: rightLayer.value.id })
+      rightLayer.value = null
+      rightLayerUnlight.value = false
     }
-    leftLayer.value = null
-    rightLayer.value = null
-    rightLayerUnlight.value = false
     actionMessage.value = '已清理当前 Demo 创建的卷帘对比模型'
   } catch (error) {
     console.error('清理卷帘对比模型失败:', error)
@@ -122,8 +121,9 @@ const createCompareLayers = async () => {
 
   isCreatingModels.value = true
   try {
-    if (hasCompareLayers.value) {
+    if (leftLayer.value || rightLayer.value) {
       await clearCompareLayers()
+      if (leftLayer.value || rightLayer.value) return
     }
 
     const left = await DasModelTilesetLayer.createInstance({
@@ -132,20 +132,17 @@ const createCompareLayers = async () => {
       }
     })
 
+    if (!left?.id) throw new Error('创建左侧模型图层失败')
+    leftLayer.value = left
     const right = await DasModelTilesetLayer.createInstance({
       param: {
         url: path
       }
     })
 
-    if (!left || !right) {
-      throw new Error('创建模型图层失败')
-    }
-
-    await right.setUnlight(true)
-
-    leftLayer.value = left
+    if (!right?.id) throw new Error('创建右侧模型图层失败')
     rightLayer.value = right
+    await right.setUnlight(true)
     rightLayerUnlight.value = true
 
     await bindCompareLayers()
@@ -167,7 +164,7 @@ const createCompareLayers = async () => {
 // 设置分界线贴图与宽度（路径为空或宽度<=0时UE不修改对应项）
 const applyLineTexture = async () => {
   try {
-    await tool.setRollerBlindLineTexture(lineTexturePath.value.trim(), lineTextureWidth.value)
+    await requestUE(tool.className, 'setRollerBlindLineTexture', { texturePath: lineTexturePath.value.trim(), textureWidth: lineTextureWidth.value })
     actionMessage.value = '分界线贴图已更新'
   } catch (error) {
     console.error('设置分界线贴图失败:', error)
@@ -178,7 +175,7 @@ const applyLineTexture = async () => {
 // 设置分界线拖拽命中宽度
 const applyHitThreshold = async () => {
   try {
-    await tool.setRollerBlindHitThreshold(hitThreshold.value)
+    await requestUE(tool.className, 'setRollerBlindHitThreshold', { hitThreshold: hitThreshold.value })
     actionMessage.value = `拖拽热区已更新到 ${hitThreshold.value}`
   } catch (error) {
     console.error('设置拖拽热区失败:', error)
@@ -190,9 +187,8 @@ const applyHitThreshold = async () => {
 const toggleMovePaused = async () => {
   const paused = !movePaused.value
   try {
-    await tool.setRollerBlindMovePaused(paused, () => {
-      movePaused.value = paused
-    })
+    await requestUE(tool.className, 'setRollerBlindMovePaused', { movePaused: paused })
+    movePaused.value = paused
     actionMessage.value = paused ? '已暂停移动中间轴' : '已继续移动中间轴'
   } catch (error) {
     console.error('设置暂停移动失败:', error)
@@ -217,13 +213,13 @@ const getMovePaused = async () => {
 
 onViewerSessionLeave(async () => {
   if (isToolActive.value) {
-    await tool.finishTool()
+    await requestUE(tool.className, 'finishTool')
   }
   if (leftLayer.value) {
-    await leftLayer.value.removeInstance()
+    await requestUE(leftLayer.value.className, 'removeInstance', { id: leftLayer.value.id })
   }
   if (rightLayer.value) {
-    await rightLayer.value.removeInstance()
+    await requestUE(rightLayer.value.className, 'removeInstance', { id: rightLayer.value.id })
   }
 })
 </script>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, ref, computed, onMounted } from 'vue'
-import { ShowModel } from './lib/Scene/ShowModel.js'
+import { ShowModel } from '../utils/showModelSettings'
 
 // 模式状态
 const isWhiteModelEnabled = ref(false)

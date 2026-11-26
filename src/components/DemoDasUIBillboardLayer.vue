@@ -3,6 +3,7 @@ import { onBeforeUnmount, ref, shallowRef } from 'vue'
 import billboardHtml from './billboardInteractive.html?raw'
 import billboardUrl from './billboardInteractive.html?url'
 import { usePointPicking } from '../utils/usePointPicking'
+import { isUESuccess, onUEEvent } from '../utils/demoRpc.js'
 import { DasPointsTool } from './lib/Tool/DasPointsTool.js'
 import { DasUIBillboardLayer } from './lib/Layer/DasUIBillboardLayer.js'
 
@@ -11,6 +12,7 @@ const layerVisible = ref(true)
 const currentLayer = shallowRef<DasUIBillboardLayer | null>(null)
 const creating = ref(false)
 let mounted = true
+let stopConsoleListener: (() => void) | undefined
 const layerVisibilityStatus = ref('未知')
 
 const billboardParams = ref({
@@ -39,14 +41,14 @@ async function createBillboard(useHtml: boolean) {
         x: options.offsetX,
         y: options.offsetY,
         onlyWhenVisible: options.onlyWhenVisible,
-      },
+      } as Parameters<DasUIBillboardLayer['updateAll']>[0],
     })
-    if (!layer || !mounted) return
-    currentLayer.value?.removeWebConsoleMessageListener()
-    layer.addWebConsoleMessageListener(async (source: DasUIBillboardLayer) => {
-      if (currentLayer.value?.id !== source.id) return
-      await source.setVisible(false)
-      if (currentLayer.value?.id === source.id) {
+    if (!layer?.id || !mounted) return
+    stopConsoleListener?.()
+    stopConsoleListener = onUEEvent(DasUIBillboardLayer.sClassName, 'consoleMessage', async message => {
+      if (currentLayer.value !== layer || message.id !== layer.id) return
+      const reply = await layer.setVisible(false)
+      if (currentLayer.value === layer && isUESuccess(reply)) {
         layerVisible.value = false
         layerVisibilityStatus.value = '隐藏'
       }
@@ -63,8 +65,8 @@ async function toggleLayerVisibility() {
   const layer = currentLayer.value
   if (!layer) return
   const visible = !layerVisible.value
-  await layer.setVisible(visible)
-  if (currentLayer.value === layer) {
+  const reply = await layer.setVisible(visible)
+  if (currentLayer.value === layer && isUESuccess(reply)) {
     layerVisible.value = visible
     layerVisibilityStatus.value = visible ? '显示' : '隐藏'
   }
@@ -73,9 +75,10 @@ async function toggleLayerVisibility() {
 async function deleteLayer() {
   const layer = currentLayer.value
   if (!layer) return
-  await layer.removeInstance()
-  layer.removeWebConsoleMessageListener()
-  if (currentLayer.value === layer) {
+  const reply = await layer.removeInstance(undefined)
+  if (currentLayer.value === layer && isUESuccess(reply)) {
+    stopConsoleListener?.()
+    stopConsoleListener = undefined
     currentLayer.value = null
     layerVisibilityStatus.value = '未知'
   }
@@ -97,7 +100,7 @@ async function getLayerVisibility() {
 
 onBeforeUnmount(() => {
   mounted = false
-  currentLayer.value?.removeWebConsoleMessageListener()
+  stopConsoleListener?.()
 })
 </script>
 

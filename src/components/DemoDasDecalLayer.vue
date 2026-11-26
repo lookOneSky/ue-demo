@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasDecalLayer } from "./lib/Layer/DasDecalLayer.js"
@@ -25,7 +26,7 @@ const decalParams = reactive({
 const startDrawTool = async () => {
   try {
     // 清空之前的点
-    await DasPolylineTool.clearPoints()
+    await requestUE(DasPolylineTool.className, 'clearPoints')
 
     // 设置线条样式
     await DasPolylineTool.setLineColor([1, 0, 0, 1]) // 红色
@@ -33,7 +34,7 @@ const startDrawTool = async () => {
     await DasPolylineTool.setLineVisible(true)
 
     // 设置为当前工具
-    await DasPolylineTool.setToCurrent()
+    await requestUE(DasPolylineTool.className, 'setToCurrent')
 
     isDrawMode.value = true
     ElMessage.success('绘制模式已启动，在场景中绘制矩形区域（需要2个点）')
@@ -47,7 +48,7 @@ const startDrawTool = async () => {
 // 停止绘制工具
 const stopDrawTool = async () => {
   try {
-    await DasPolylineTool.finishTool()
+    await requestUE(DasPolylineTool.className, 'finishTool')
     isDrawMode.value = false
     console.log('绘制工具已停止')
   } catch (error) {
@@ -93,7 +94,7 @@ const createFromDrawnPoints = async () => {
     }
 
     const decalLayer = await DasDecalLayer.createInstance(params)
-    if (!decalLayer) return
+    if (!decalLayer?.id) throw new Error('UE 未返回新建图层的 ID')
     createdLayers.add(decalLayer)
     currentDecalLayer.value = decalLayer
 
@@ -232,12 +233,12 @@ const clearAll = async () => {
     }
 
     for (const layer of [...createdLayers].reverse()) {
-      await layer.removeInstance()
+      await requestUE(layer.className, 'removeInstance', { id: layer.id })
       createdLayers.delete(layer)
     }
 
     // 清空工具点
-    await DasPolylineTool.clearPoints()
+    await requestUE(DasPolylineTool.className, 'clearPoints')
 
     // 重置状态
     currentDecalLayer.value = null
@@ -254,7 +255,7 @@ const clearAll = async () => {
   }
 }
 onViewerSessionLeave(() => {
-  if (isDrawMode.value) return DasPolylineTool.finishTool()
+  if (isDrawMode.value) return requestUE(DasPolylineTool.className, 'finishTool')
 })
 </script>
 

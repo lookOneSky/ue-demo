@@ -2,7 +2,7 @@
 import { computed, inject, ref } from 'vue'
 import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
-import { isUESuccess } from "./lib/ExcuteUEFun.js"
+import { isUESuccess, requestUE } from "../utils/demoRpc.js"
 import { DasPointsLayer } from "./lib/Layer/DasPointsLayer.js"
 
 // 工具状态
@@ -62,7 +62,7 @@ const createLayerFromTool = async () => {
   if (!state || state.pending) return
   state.pending = true
   try {
-    const info = await DasPointsTool.getAll()
+    const info = await requestUE(DasPointsTool.className, 'getAll')
     if (session !== getShareData('viewerSession')) return
     if (!Array.isArray(info.posLLH) || info.posLLH.length !== 3 || !info.posLLH.every(Number.isFinite)) {
       console.warn('请先在场景中拾取一个点')
@@ -70,9 +70,9 @@ const createLayerFromTool = async () => {
     }
     const result = await DasPointsLayer.createInstance({
       param: {
-        posLLH: info.posLLH, texturePath: info.texturePath, pointSize: info.pointSize,
+        points: [info.posLLH], texturePath: info.texturePath, pointSize: info.pointSize,
         enableDepthTest: info.enableDepthTest, IsSpread: true, autoScale: autoScale.value,
-      }
+      } as Parameters<DasPointsLayer['updateAll']>[0]
     })
     if (!result?.id) return
     state.layer = result
@@ -134,7 +134,7 @@ const toggleLayerVisibility = async () => {
 const deleteLayer = async () => {
   const layer = currentLayer.value
   if (!state || !layer || state.pending) return
-  const response = await layer.removeInstance()
+  const response = await layer.removeInstance(undefined)
   if (currentLayer.value !== layer || !isUESuccess(response)) return
   state.layer = undefined
 }

@@ -1,6 +1,7 @@
 import { inject, onBeforeUnmount, onMounted } from 'vue'
-import { ShowModel } from '../components/lib/Scene/ShowModel.js'
+import { ShowModel } from './showModelSettings'
 import { Weather } from '../components/lib/Scene/Weather.js'
+import { requestUE } from './demoRpc.js'
 
 // 两个灯光面板共用 UE 的显示模式。先还原上一个面板，再读取新面板的初始状态。
 let pending = Promise.resolve()
@@ -40,7 +41,7 @@ export function useLightDemoShowModel() {
     enqueue(async () => {
       if (!sameSession()) return
       await Promise.all([
-        Weather.SetTimeOfDay('12:00'),
+        requestUE(Weather.className, 'SetTimeOfDay', { timeOfDay: '12:00' }),
         restoreUnlight && ShowModel.SetUnlightEnable(true),
         restoreNormals && ShowModel.SetGenerateNormal(false),
       ])

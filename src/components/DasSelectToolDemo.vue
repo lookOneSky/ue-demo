@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, ref, onBeforeUnmount } from 'vue'
 import { DasSelectTool } from './lib/Tool/DasSelectTool.js'
+import { requestUE } from '../utils/demoRpc.js'
 
 // 工具状态
 const getShareData = inject<(key: string) => unknown>('getShareData')!
@@ -54,7 +55,7 @@ const startTool = async () => {
   starting = true
   toolSession = session
   try {
-    await DasSelectTool.setToCurrent()
+    await requestUE(DasSelectTool.className, 'setToCurrent')
     if (toolSession !== session) return
     await DasSelectTool.setSelectMode(selectMode.value)
     if (toolSession !== session) return
@@ -75,7 +76,7 @@ const startTool = async () => {
 // 结束工具
 const stopTool = async () => {
   try {
-    await DasSelectTool.finishTool()
+    await requestUE(DasSelectTool.className, 'finishTool')
     isToolActive.value = false
     toolSession = undefined
     console.log('选择工具已停止')
@@ -202,7 +203,7 @@ const setHighlightColor = async () => {
 
 // 清空选择
 const clearSelection = async () => {
-  await DasSelectTool.clearSelect()
+  await requestUE(DasSelectTool.className, 'clearSelect')
   selectedInfo.value.message = ''
 }
 
@@ -234,7 +235,7 @@ const removeSelectionEventListener = () => {
 onBeforeUnmount(() => {
   if (toolSession && toolSession === getShareData('viewerSession')) {
     if (isToolActive.value) removeSelectionEventListener()
-    void DasSelectTool.finishTool().catch(console.error)
+    void requestUE(DasSelectTool.className, 'finishTool').catch(console.error)
   }
   toolSession = undefined
 })

@@ -1,5 +1,6 @@
 import { inject, onBeforeUnmount, ref } from 'vue'
 import { DasPointsTool } from '../components/lib/Tool/DasPointsTool.js'
+import { requestUE } from './demoRpc.js'
 
 export function usePointPicking() {
   const getShareData = inject<(key: string) => unknown>('getShareData')!
@@ -13,7 +14,7 @@ export function usePointPicking() {
     toolSession = session
     changingTool.value = true
     try {
-      await DasPointsTool.setToCurrent()
+      await requestUE(DasPointsTool.className, 'setToCurrent')
       isToolActive.value = toolSession === session && session === getShareData('viewerSession')
     } finally {
       changingTool.value = false
@@ -24,7 +25,7 @@ export function usePointPicking() {
     if (!toolSession || changingTool.value) return
     changingTool.value = true
     try {
-      await DasPointsTool.finishTool()
+      await requestUE(DasPointsTool.className, 'finishTool')
       isToolActive.value = false
       toolSession = undefined
     } finally {
@@ -34,7 +35,7 @@ export function usePointPicking() {
 
   onBeforeUnmount(() => {
     if (toolSession && toolSession === getShareData('viewerSession')) {
-      if (!changingTool.value || !isToolActive.value) void DasPointsTool.finishTool().catch(console.error)
+      if (!changingTool.value || !isToolActive.value) void requestUE(DasPointsTool.className, 'finishTool').catch(console.error)
     }
     toolSession = undefined
   })

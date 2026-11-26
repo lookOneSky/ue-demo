@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, reactive } from 'vue'
 import { DasSpline } from "./lib/Layer/DasSplineLayer.js"
@@ -39,7 +40,7 @@ const createSplineLayer = async () => {
     }
     
     const splineLayer = await DasSpline.createInstance(params)
-    if (!splineLayer) return
+    if (!splineLayer?.id) throw new Error('UE 未返回新建图层的 ID')
     createdLayers.add(splineLayer)
     currentSplineLayer.value = splineLayer
     
@@ -59,10 +60,10 @@ const startEditTool = async () => {
     }
     
     // 设置编辑图层
-    await DasPointEditTool.editLayer(currentSplineLayer.value)
+    await requestUE(DasPointEditTool.className, 'editLayer', { layer: currentSplineLayer.value.writeObjectInfo() })
     
     // 设置为当前工具
-    await DasPointEditTool.setToCurrent()
+    await requestUE(DasPointEditTool.className, 'setToCurrent')
     
     isEditMode.value = true
     console.log('点编辑工具已启动')
@@ -74,9 +75,8 @@ const startEditTool = async () => {
 // 停止编辑工具
 const stopEditTool = async () => {
   try {
-    // 这里可以添加停止编辑工具的逻辑
+    await requestUE(DasPointEditTool.className, 'finishTool')
     isEditMode.value = false
-    DasPointEditTool.finishTool()
     console.log('点编辑工具已停止')
   } catch (error) {
     console.error('停止编辑工具失败:', error)
@@ -161,7 +161,7 @@ const clearAll = async () => {
     }
     
     for (const layer of [...createdLayers].reverse()) {
-      await layer.removeInstance()
+      await requestUE(layer.className, 'removeInstance', { id: layer.id })
       createdLayers.delete(layer)
     }
     
@@ -175,7 +175,7 @@ const clearAll = async () => {
   }
 }
 onViewerSessionLeave(() => {
-  if (isEditMode.value) return DasPointEditTool.finishTool()
+  if (isEditMode.value) return requestUE(DasPointEditTool.className, 'finishTool')
 })
 </script>
 

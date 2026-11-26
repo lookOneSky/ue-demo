@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { Camera } from './lib/Scene/Camera.js'
+import { isCameraView, type CameraView } from '../utils/cameraDemoView'
+import { isUESuccess, requestUE } from '../utils/demoRpc.js'
 
 const props = defineProps<{ ready: boolean }>()
 const emit = defineEmits<{ snippet: [code: string]; result: [message: string] }>()
@@ -11,10 +13,6 @@ const methods = {
   flyToLocationLLH: { name: '飞行到指定位置', help: '使用经纬度、高度与欧拉角设置目标视角。' },
 }
 type Method = keyof typeof methods
-interface CameraView {
-  locationLLH: [number, number, number]
-  rotationLLH: { pitch: number; yaw: number; roll: number }
-}
 const method = ref<Method>('flyToCameraPositionByName')
 const positionName = ref('相机点位1')
 const flyDuration = ref(5)
@@ -35,32 +33,28 @@ const duration = computed({
   }
 })
 
-function prepareCall<Args extends unknown[], Result>(fn: (...args: Args) => Promise<Result>, ...args: Args) {
-  return { args, run: () => fn.apply(Camera, args) }
-}
-const call = computed(() => {
+const params = computed(() => {
   switch (method.value) {
-    case 'getCameraFlyInfoLLH': return prepareCall(Camera.getCameraFlyInfoLLH)
-    case 'flyToCameraPositionByName': return prepareCall(Camera.flyToCameraPositionByName, positionName.value, flyDuration.value)
-    case 'flyToLocationLLH': return prepareCall(Camera.flyToLocationLLH,
-      [pose.longitude, pose.latitude, pose.height],
-      { pitch: pose.pitch, yaw: pose.yaw, roll: pose.roll },
-      flyDuration.value, 1
-    )
-    case 'flyToLocationLongLat': return prepareCall(Camera.flyToLocationLongLat,
-      ground.longitude, ground.latitude, ground.yaw, ground.pitch,
-      ground.duration, ground.scale, ground.extraHeight
-    )
+    case 'getCameraFlyInfoLLH': return {}
+    case 'flyToCameraPositionByName': return { positionName: positionName.value, duration: flyDuration.value }
+    case 'flyToLocationLLH': return {
+      locationLLH: [pose.longitude, pose.latitude, pose.height],
+      rotationLLH: { pitch: pose.pitch, yaw: pose.yaw, roll: pose.roll },
+      duration: flyDuration.value, addHeightScale: 1,
+    }
+    case 'flyToLocationLongLat': return {
+      longitude: ground.longitude, latitude: ground.latitude, rotationYaw: ground.yaw,
+      rotationPitch: ground.pitch, duration: ground.duration, addHeightScale: ground.scale,
+      extraViewHeight: ground.extraHeight,
+    }
   }
 })
 
 const snippet = computed(() => {
   if (method.value === 'getCameraFlyInfoLLH') return 'const view = await Camera.getCameraFlyInfoLLH();'
   const lines = []
-  if (usesCoordinates.value) lines.push('await Camera.forbitAddHeightOnFly(' + forbidAddHeight.value + ');')
-  lines.push('const arrived = await Camera.' + method.value + '(')
-  lines.push('  ' + call.value.args.map(value => JSON.stringify(value)).join(',\n  '))
-  lines.push(');')
+  if (usesCoordinates.value) lines.push('await ExcuteUEFun.excuteUEFunction("Camera", "forbitAddHeightOnFly", { forbitAddHeight: ' + forbidAddHeight.value + ' });')
+  lines.push('const reply = await ExcuteUEFun.excuteUEFunction("Camera", "' + method.value + '", ' + JSON.stringify(params.value, null, 2) + ');')
   return lines.join('\n')
 })
 watch(snippet, code => emit('snippet', code), { immediate: true })
@@ -118,17 +112,11 @@ function reset() {
 }
 defineExpose({ reset })
 
-function isCameraView(value: Partial<CameraView> | boolean): value is CameraView {
-  return Boolean(value && typeof value === 'object' && Array.isArray(value.locationLLH) && value.locationLLH.length === 3 &&
-    value.locationLLH.every(Number.isFinite) && value.rotationLLH &&
-    [value.rotationLLH.pitch, value.rotationLLH.yaw, value.rotationLLH.roll].every(Number.isFinite))
-}
-
 async function run() {
   if (!props.ready || busy.value) return
   const request = ++runId
   const api = method.value
-  const submitted = call.value
+  const submitted = params.value
   const submittedCode = snippet.value
   const blockHeight = forbidAddHeight.value
   busy.value = true
@@ -136,21 +124,24 @@ async function run() {
   try {
     if (usesCoordinates.value) {
       waitForReply(request, 'forbitAddHeightOnFly')
-      const configured = await Camera.forbitAddHeightOnFly(blockHeight)
+      const configured = await requestUE(Camera.className, 'forbitAddHeightOnFly', { forbitAddHeight: blockHeight })
       if (request !== runId) return
-      if (!configured) throw new Error('设置飞行高度选项失败。')
+      if (!isUESuccess(configured)) throw new Error('设置飞行高度选项失败。')
     }
     waitForReply(request, api)
-    const result = await submitted.run()
+    const result = api === 'getCameraFlyInfoLLH'
+      ? await Camera.getCameraFlyInfoLLH()
+      : await requestUE(Camera.className, api, submitted)
     if (request !== runId) return
     if (api === 'getCameraFlyInfoLLH') {
       if (!isCameraView(result)) throw new Error('场景返回的相机信息缺少有效的位置或旋转数据。')
       lastView.value = result
       const [longitude, latitude, height] = result.locationLLH
       Object.assign(pose, result.rotationLLH, { longitude, latitude, height })
+    } else if (!isUESuccess(result)) {
+      throw new Error('UE 未确认本次飞行成功。')
     }
-    const status = result === false ? '调用失败，接口返回 false。' : '调用完成'
-    emit('result', status + '\n' + JSON.stringify(result, null, 2) + '\n\n本次调用\n' + submittedCode)
+    emit('result', '调用完成\n' + JSON.stringify(result, null, 2) + '\n\n本次调用\n' + submittedCode)
   } catch (error) {
     if (request === runId) emit('result', '调用失败\n' + (error instanceof Error ? error.message : String(error)))
   } finally {

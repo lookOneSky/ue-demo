@@ -2,6 +2,7 @@
 import { computed, inject, ref, watch } from 'vue'
 import Scene from './lib/Scene/Scene.js'
 import { Camera } from './lib/Scene/Camera.js'
+import { isUESuccess, requestUE } from '../utils/demoRpc.js'
 
 interface Level {
   name: string
@@ -30,8 +31,10 @@ async function changeLevel(level: Level, load: boolean, fly = false) {
   level.error = ''
   try {
     if (fly) void Camera.flyToCameraPositionByName(level.cameraPosition, 0).catch(console.error)
-    const accepted = load ? await Scene.loadLevel(level.name, level.visible) : await Scene.unloadLevel(level.name)
-    if (accepted) level.loaded = load
+    const reply = load
+      ? await requestUE(Scene.className, 'loadLevel', { levelName: level.name, makeVisible: level.visible })
+      : await requestUE(Scene.className, 'unloadLevel', { levelName: level.name })
+    if (isUESuccess(reply)) level.loaded = load
     else level.error = load ? '加载请求失败' : '卸载请求失败'
   } catch (error) {
     level.error = error instanceof Error ? error.message : String(error)
@@ -40,8 +43,17 @@ async function changeLevel(level: Level, load: boolean, fly = false) {
   }
 }
 
-function switchToLevel(level: Level) {
-  return Scene.loadNextLevel(level.name)
+async function switchToLevel(level: Level) {
+  if (!session.value || level.pending) return
+  level.pending = true
+  level.error = ''
+  try {
+    await requestUE(Scene.className, 'loadNextLevel', { levelName: level.name })
+  } catch (error) {
+    level.error = error instanceof Error ? error.message : String(error)
+  } finally {
+    level.pending = false
+  }
 }
 
 function changeAllLevels(load: boolean) {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { inject, ref, onMounted } from 'vue'
 import { Camera } from './lib/Scene/Camera.js'
+import { isLLH } from '../utils/cameraDemoView'
 
 // 边界检查
 const disableBoundCheck = ref(false)
@@ -58,7 +59,7 @@ const handleRefreshForceUseNearTranslationMode = async () => {
 // 取当前相机位置作为圆心
 const handleUseCameraAsBoundCenter = async () => {
   const info = await Camera.getCameraFlyInfoLLH()
-  if (info.locationLLH) boundCenterLLH.value = [...info.locationLLH]
+  if ('locationLLH' in info && isLLH(info.locationLLH)) boundCenterLLH.value = [...info.locationLLH]
 }
 // 设置水平圆形限制范围
 const handleSetBoundingSphere = async () => {
@@ -73,7 +74,9 @@ const handleClearBoundingSphere = async () => {
 // 获取水平圆形限制范围
 const handleRefreshBoundingSphere = async () => {
   const bound = await Camera.getBoundingSphere()
-  if (!bound.centerLLH) return
+  if (!('centerLLH' in bound) || !isLLH(bound.centerLLH) ||
+      !('radius' in bound) || typeof bound.radius !== 'number' ||
+      !('canIntersect' in bound) || typeof bound.canIntersect !== 'boolean') return
   boundCenterLLH.value = [...bound.centerLLH]
   boundRadius.value = bound.radius
   boundCanIntersect.value = bound.canIntersect

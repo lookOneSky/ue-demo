@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { computed, inject, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { DasVideoCompositeLayer } from "./lib/Layer/DasVideoCompositeLayer.js"
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
@@ -106,7 +107,7 @@ const startPointTool = async () => {
   if (!owner || pointToolSession === owner) return
   pointToolSession = owner
   try {
-    await DasPointsTool.setToCurrent()
+    await requestUE(DasPointsTool.className, 'setToCurrent')
     if (pointToolSession !== owner || session.value !== owner) return
     isToolActive.value = true
     console.log('点工具已启动')
@@ -119,11 +120,12 @@ const startPointTool = async () => {
 // 停止点工具
 const stopPointTool = async () => {
   const owner = pointToolSession
-  pointToolSession = undefined
-  isToolActive.value = false
   if (!owner || session.value !== owner) return
   try {
-    await DasPointsTool.finishTool()
+    await requestUE(DasPointsTool.className, 'finishTool')
+    if (pointToolSession !== owner || session.value !== owner) return
+    pointToolSession = undefined
+    isToolActive.value = false
     console.log('点工具已停止')
   } catch (error) {
     console.error('停止点工具失败:', error)
@@ -451,7 +453,7 @@ const deleteLayer = async () => {
     
     const owner = session.value!
     const state = owner.videoComposite!
-    await state.layer.removeInstance()
+    await requestUE(state.layer.className, 'removeInstance', { id: state.layer.id })
     if (owner.videoComposite === state) delete owner.videoComposite
   } catch (error) {
     console.error('删除图层失败:', error)

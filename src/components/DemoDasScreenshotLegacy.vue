@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 import Scene from './lib/Scene/Scene.js'
+import { requestUE } from '../utils/demoRpc.js'
 
 const savePath = ref('')
 const resolutionMultiplier = ref(1.0)
@@ -24,9 +25,12 @@ const takeScreenshot = async () => {
   isLoading.value = true
   lastResult.value = null
   try {
-    unsubscribe = Scene.onScreenshotCompleted(() => finishRequest('截图完成'))
-    const success = await Scene.takeScreenshot(savePath.value, resolutionMultiplier.value, tilesScreenSpaceError.value)
-    if (!success) finishRequest('截图请求失败')
+    const stop = Scene.onScreenshotCompleted(() => finishRequest('截图完成'))
+    unsubscribe = () => stop()
+    await requestUE(Scene.className, 'takeScreenshot', {
+      savePath: savePath.value, resolutionMultiplier: resolutionMultiplier.value,
+      '3DtilesScreenSpaceError': tilesScreenSpaceError.value,
+    })
   } catch {
     finishRequest('截图请求失败')
   }

@@ -48,8 +48,14 @@ watch(() => [visible.value, props.file] as const, async ([show, file], _, onClea
         if (!referenced.some(item => item.name === name && item.path === path)) referenced.push({ name, path })
       }
     }
-    modules.value = referenced
     const owners = props.owner.split(/\s*·\s*/)
+    // 调用方封装可能间接使用 SDK，目录仍记录该示例对应的类。
+    for (const name of owners) {
+      if (referenced.some(item => item.name === name)) continue
+      const path = Object.keys(sdk).find(key => key.endsWith('/' + name + '.js'))
+      if (path) referenced.push({ name, path })
+    }
+    modules.value = referenced
     selected.value = owners.find(name => referenced.some(item => item.name === name)) || referenced[0]?.name || ''
     if (!selected.value) status.value = '此示例未直接引用 SDK 模块。'
   } catch {

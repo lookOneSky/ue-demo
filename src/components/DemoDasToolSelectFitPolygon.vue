@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { DasToolSelectFitPolygon } from './lib/Tool/DasToolSelectFitPolygon.js'
@@ -47,7 +48,7 @@ const selectedInfo = ref({
 // 启动工具
 const startTool = async () => {
   try {
-    await DasToolSelectFitPolygon.setToCurrent()
+    await requestUE(DasToolSelectFitPolygon.className, 'setToCurrent')
     await DasToolSelectFitPolygon.setSelectMode(selectMode.value)
     await DasToolSelectFitPolygon.setSelectShowState(selectShowState.value)
     isToolActive.value = true
@@ -63,7 +64,7 @@ const startTool = async () => {
 // 结束工具
 const stopTool = async () => {
   try {
-    await DasToolSelectFitPolygon.finishTool()
+    await requestUE(DasToolSelectFitPolygon.className, 'finishTool')
     isToolActive.value = false
     console.log('立面多边形选择工具已停止')
 
@@ -183,14 +184,15 @@ const setHighlightColor = async () => {
 
 // 清空选择
 const clearSelection = async () => {
-  DasToolSelectFitPolygon.clearSelect()
+  await requestUE(DasToolSelectFitPolygon.className, 'clearSelect')
 }
 
 // 添加选择响应事件监听
 const addSelectionEventListener = () => {
   DasToolSelectFitPolygon.addCallBack(
-    (json: { message: string; id?: string; type?: string; name?: string; position?: number[] }) => {
-      let strMessage = json.message
+    (json: { function: string; message?: unknown }) => {
+      if (json.function !== 'emitMessage' || json.message == null) return
+      const strMessage = typeof json.message === 'string' ? json.message : JSON.stringify(json.message)
 
       // 只更新消息内容，不解析json
       selectedInfo.value = {
@@ -222,7 +224,7 @@ onBeforeUnmount(() => {
   if (isToolActive.value && window.viewer) removeSelectionEventListener()
 })
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return DasToolSelectFitPolygon.finishTool()
+  if (isToolActive.value) return requestUE(DasToolSelectFitPolygon.className, 'finishTool')
 })
 </script>
 

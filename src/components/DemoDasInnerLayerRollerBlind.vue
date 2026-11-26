@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { computed, ref } from 'vue'
 import { DasToolRollerBlind } from './lib/Tool/DasToolRollerBlind.js'
@@ -94,9 +95,8 @@ const setCompareLayersVisible = async (visible: boolean) => {
 
 const startTool = async () => {
   try {
-    await tool.setToCurrent(() => {
-      isToolActive.value = true
-    })
+    await requestUE(tool.className, 'setToCurrent')
+    isToolActive.value = true
     await setCompareLayersCastShadow(false)
     await setCompareLayersVisible(true)
     actionMessage.value = '卷帘工具已激活'
@@ -108,9 +108,8 @@ const startTool = async () => {
 
 const stopTool = async () => {
   try {
-    await tool.finishTool(() => {
-      isToolActive.value = false
-    })
+    await requestUE(tool.className, 'finishTool')
+    isToolActive.value = false
     await setCompareLayersCastShadow(true)
     await setCompareLayersVisible(false)
     actionMessage.value = '卷帘工具已停止'
@@ -124,7 +123,7 @@ const applyPosition = async () => {
   if (!isToolActive.value) return
 
   try {
-    await tool.setRollerBlindPosition(rollerBlindPosition.value)
+    await requestUE(tool.className, 'setRollerBlindPosition', { rollerBlindPosition: rollerBlindPosition.value })
     actionMessage.value = `卷帘位置已更新到 ${rollerBlindPosition.value.toFixed(2)}`
   } catch (error) {
     console.error('设置卷帘位置失败:', error)
@@ -153,7 +152,7 @@ const getCurrentPosition = async () => {
 // 设置分界线贴图与宽度（路径为空或宽度<=0时UE不修改对应项）
 const applyLineTexture = async () => {
   try {
-    await tool.setRollerBlindLineTexture(lineTexturePath.value.trim(), lineTextureWidth.value)
+    await requestUE(tool.className, 'setRollerBlindLineTexture', { texturePath: lineTexturePath.value.trim(), textureWidth: lineTextureWidth.value })
     actionMessage.value = '分界线贴图已更新'
   } catch (error) {
     console.error('设置分界线贴图失败:', error)
@@ -164,7 +163,7 @@ const applyLineTexture = async () => {
 // 设置分界线拖拽命中宽度
 const applyHitThreshold = async () => {
   try {
-    await tool.setRollerBlindHitThreshold(hitThreshold.value)
+    await requestUE(tool.className, 'setRollerBlindHitThreshold', { hitThreshold: hitThreshold.value })
     actionMessage.value = `拖拽热区已更新到 ${hitThreshold.value}`
   } catch (error) {
     console.error('设置拖拽热区失败:', error)
@@ -176,9 +175,8 @@ const applyHitThreshold = async () => {
 const toggleMovePaused = async () => {
   const paused = !movePaused.value
   try {
-    await tool.setRollerBlindMovePaused(paused, () => {
-      movePaused.value = paused
-    })
+    await requestUE(tool.className, 'setRollerBlindMovePaused', { movePaused: paused })
+    movePaused.value = paused
     actionMessage.value = paused ? '已暂停移动中间轴' : '已继续移动中间轴'
   } catch (error) {
     console.error('设置暂停移动失败:', error)
@@ -203,7 +201,7 @@ const getMovePaused = async () => {
 
 onViewerSessionLeave(async () => {
   if (isToolActive.value) {
-    await tool.finishTool()
+    await requestUE(tool.className, 'finishTool')
   }
 })
 </script>

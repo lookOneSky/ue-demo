@@ -2,7 +2,7 @@
 import { inject, ref, onBeforeUnmount, onMounted } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { DasLayerBase } from './lib/Layer/DasLayerBase.js'
-import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
+import { requestUE } from '../utils/demoRpc.js'
 
 // 图层列表
 interface LayerInfo {
@@ -35,22 +35,30 @@ const getAllLayers = async () => {
   if (isLoading.value) return
   isLoading.value = true
   try {
-    const pRoot = await DasGroupLayer.getRoot()
+    const root = await requestUE('DasGroupLayer', 'getRoot')
     if (!active) return
-    const allLayers = await pRoot.getAllLayer()
+    if (!root.id) throw new Error('UE 未返回根图层 ID')
+    const { layers } = await requestUE('DasGroupLayer', 'getAllLayer', { id: root.id })
+    if (!active) return
+    if (!Array.isArray(layers)) throw new Error('UE 未返回根图层列表')
     
     layerList.value = []
     
-    if (allLayers && allLayers.length > 0) {
-      for (let i = 0; i < allLayers.length; i++) {
+    if (layers.length > 0) {
+      for (let i = 0; i < layers.length; i++) {
         if (!active) return
-        const layer = allLayers[i]
+        const handle = layers[i]
+        if (!handle?.id) continue
+        const layer = new DasLayerBase()
+        layer.id = handle.id
+        layer.className = handle.class || layer.className
         try {
           const [id, name, className, visible, highlight, outline, distanceVisible, visibleConfig] = await Promise.all([
             layer.getID(), layer.getName(), layer.requestClassName(), layer.isVisible(), layer.isHightLight(),
             layer.isOutline(), layer.isDistanceVisibleEnable(), layer.getVisibleDistanceConfig(),
           ])
-          layerList.value.push({ index: i, layer, id, name: name || `图层_${i}`, className, visible,
+          if (!active) return
+          layerList.value.push({ index: i, layer, id: String(id ?? layer.id), name: name || `图层_${i}`, className, visible,
             highlight, outline, distanceVisible, visibleConfig })
         } catch (error) {
           console.error(`获取图层 ${i} 信息失败:`, error)
@@ -81,11 +89,7 @@ const getAllLayers = async () => {
 // 设置单个图层可见距离
 const setLayerVisibleDistance = async (layerInfo: LayerInfo, config: typeof visibleDistanceConfig.value) => {
   try {
-    await layerInfo.layer.setVisibleDistance(
-      config.distanceVisibleEnable,
-      config.maxVisibleDistance,
-      config.minVisibleDistance
-    )
+    await requestUE(layerInfo.layer.className, 'setVisibleDistance', { ...config, id: layerInfo.layer.id })
     
     layerInfo.distanceVisible = config.distanceVisibleEnable
     layerInfo.visibleConfig = {
@@ -126,7 +130,7 @@ const setAllLayersVisibleDistance = async () => {
 const toggleLayerVisible = async (layerInfo: LayerInfo) => {
   try {
     const newVisible = !layerInfo.visible
-    await layerInfo.layer.setVisible(newVisible)
+    await requestUE(layerInfo.layer.className, 'setVisible', { id: layerInfo.layer.id, visible: newVisible })
     layerInfo.visible = newVisible
     console.log(`图层 ${layerInfo.name} 可见性已设置为:`, newVisible)
   } catch (error) {
@@ -154,15 +158,15 @@ const batchSetLayerState = async (property: 'visible' | 'highlight' | 'outline',
       try {
         switch (property) {
           case 'visible':
-            await layerInfo.layer.setVisible(value)
+            await requestUE(layerInfo.layer.className, 'setVisible', { id: layerInfo.layer.id, visible: value })
             layerInfo.visible = value
             break
           case 'highlight':
-            await layerInfo.layer.setHightLight(value)
+            await requestUE(layerInfo.layer.className, 'setHightLight', { id: layerInfo.layer.id, hightLight: value })
             layerInfo.highlight = value
             break
           case 'outline':
-            await layerInfo.layer.setOutline(value)
+            await requestUE(layerInfo.layer.className, 'setOutline', { id: layerInfo.layer.id, outline: value })
             layerInfo.outline = value
             break
         }

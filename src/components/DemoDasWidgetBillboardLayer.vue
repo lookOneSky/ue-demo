@@ -3,6 +3,7 @@ import { onBeforeUnmount, ref, shallowRef } from 'vue'
 import billboardHtml from '../assets/billboard.html?raw'
 import billboardUrl from '../assets/billboard.html?url'
 import { usePointPicking } from '../utils/usePointPicking'
+import { isUESuccess } from '../utils/demoRpc.js'
 import { DasPointsTool } from './lib/Tool/DasPointsTool.js'
 import { DasWidgetBillboardLayer } from './lib/Layer/DasWidgetBillboardLayer.js'
 
@@ -41,9 +42,9 @@ async function createBillboard(useHtml: boolean) {
         autoScale: options.autoScale,
         rate: options.depthOffsetRate,
         blendMode: options.blendMode,
-      },
+      } as Parameters<DasWidgetBillboardLayer['updateAll']>[0],
     })
-    if (!layer || !mounted) return
+    if (!layer?.id || !mounted) return
     currentLayer.value = layer
     layerVisible.value = true
   } finally {
@@ -55,8 +56,8 @@ async function toggleLayerVisibility() {
   const layer = currentLayer.value
   if (!layer) return
   const visible = !layerVisible.value
-  await layer.setVisible(visible)
-  if (currentLayer.value === layer) {
+  const reply = await layer.setVisible(visible)
+  if (currentLayer.value === layer && isUESuccess(reply)) {
     layerVisible.value = visible
   }
 }
@@ -64,8 +65,8 @@ async function toggleLayerVisibility() {
 async function deleteLayer() {
   const layer = currentLayer.value
   if (!layer) return
-  await layer.removeInstance()
-  if (currentLayer.value === layer) {
+  const reply = await layer.removeInstance(undefined)
+  if (currentLayer.value === layer && isUESuccess(reply)) {
     currentLayer.value = null
   }
 }

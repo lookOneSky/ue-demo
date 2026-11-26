@@ -1,17 +1,18 @@
 <script setup>
 import { watch } from 'vue'
 import { Weather } from './lib/Scene/Weather.js'
+import { requestUE } from '../utils/demoRpc.js'
 import { weatherForm as form } from './weatherForm'
 import WeatherSlider from './WeatherSlider.vue'
 
 watch(() => form.windDirection, value => {
-  Weather.SetWindDirection(value / 100 * 360).catch(console.error)
+  requestUE(Weather.className, 'SetWindDirection', { direction: value / 100 * 360 }).catch(console.error)
 })
 watch(() => form.windIntensity, value => {
-  Weather.SetWindIntensity(value / 100 * 5).catch(console.error)
+  requestUE(Weather.className, 'SetWindIntensity', { intensity: value / 100 * 5 }).catch(console.error)
 })
 watch(() => form.cloudIntensity, value => {
-  Weather.SetControlCloudIntensity(value / 100 * 10).catch(console.error)
+  requestUE(Weather.className, 'SetControlCloudIntensity', { intensity: value / 100 * 10 }).catch(console.error)
 })
 watch(() => form.fogIntensity, value => {
   Weather.SetControlFogIntensity(value).catch(console.error)

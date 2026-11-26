@@ -3,6 +3,8 @@ import { ref } from 'vue'
 import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from './lib/Tool/DasPointsTool.js'
 import { Camera } from './lib/Scene/Camera.js'
+import { isLLH } from '../utils/cameraDemoView'
+import { isUESuccess, requestUE } from '../utils/demoRpc.js'
 
 const { isToolActive, changingTool, startTool, stopTool } = usePointPicking() // 点工具是否激活
 const targetLLH = ref([0, 0, 0]) // 目标点[经度,纬度,高度]
@@ -15,18 +17,27 @@ const flyResult = ref<boolean | null>(null) // 飞行结果
 
 // 把点工具取到的点填为目标点
 const readPickedPoint = async () => {
-  const info = await DasPointsTool.getAll()
-  if (!info?.posLLH || info.posLLH.length < 3) {
+  const point = await DasPointsTool.getPointPosition()
+  if (!isLLH(point)) {
     console.warn('请先在场景中拾取一个点')
     return
   }
-  targetLLH.value = [...info.posLLH]
+  targetLLH.value = [...point]
 }
 
 // 以指定俯仰角飞到目标点上方观察，并按屏幕像素偏移
 const flyToTarget = async () => {
-  flyResult.value = await Camera.flyToTargetLLHWithOffsetScreen(
-    targetLLH.value, heightToTarget.value, pitch.value, offsetScreen.value, duration.value, addHeightScale.value)
+  flyResult.value = null
+  try {
+    const reply = await requestUE(Camera.className, 'flyToTargetLLHWithOffsetScreen', {
+      targetLLH: targetLLH.value, heightToTarget: heightToTarget.value, pitch: pitch.value,
+      offsetScreen: offsetScreen.value, duration: duration.value, addHeightScale: addHeightScale.value,
+    })
+    flyResult.value = isUESuccess(reply)
+  } catch (error) {
+    flyResult.value = false
+    console.error('相机飞行失败', error)
+  }
 }
 </script>
 

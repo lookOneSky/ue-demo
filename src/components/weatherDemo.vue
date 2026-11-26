@@ -1,6 +1,7 @@
 <script setup>
 import { watch } from 'vue'
 import { Weather } from './lib/Scene/Weather.js'
+import { requestUE } from '../utils/demoRpc.js'
 import { weatherForm as form } from './weatherForm'
 import WeatherSlider from './WeatherSlider.vue'
 
@@ -8,13 +9,13 @@ const weatherOptions = ['晴', '多云', '雾', '雨', '雪', '雷雨']
 const seasonOptions = ['春天', '夏天', '秋天', '冬天']
 
 watch(() => form.weatherType, type => {
-  Weather.SetWeatherType(type).catch(console.error)
+  requestUE(Weather.className, 'SetWeatherType', { weatherType: type }).catch(console.error)
 })
 watch(() => form.season, season => {
   Weather.SetSeason(season).catch(console.error)
 })
 watch(() => form.rainIntensity, value => {
-  Weather.SetControlRainIntensity(value).catch(console.error)
+  requestUE(Weather.className, 'SetControlRainIntensity', { intensity: value }).catch(console.error)
 })
 watch(() => form.snowIntensity, value => {
   Weather.SetControlSnowIntensity(value).catch(console.error)

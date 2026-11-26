@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { requestUE } from '../utils/demoRpc.js'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementDistance } from './lib/Tool/DasToolMeasurementDistance.js'
 
@@ -32,9 +33,8 @@ const arrayToRgba = (c: number[]) =>
   `rgba(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)}, ${c[3] ?? 1})`
 
 const startTool = async () => {
-  await tool.setToCurrent(() => {
-    isToolActive.value = true
-  })
+  await requestUE(tool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 const getPoints = async () => {
@@ -45,16 +45,15 @@ const getPoints = async () => {
 }
 
 const clearPoints = async () => {
-  await tool.clearAllPoints(() => {
-    pointsList.value = []
-    isToolActive.value = false
-  })
+  await requestUE(tool.className, 'clearAllPoints')
+  pointsList.value = []
+  isToolActive.value = false
 }
 
 // 设置单个颜色
 const setColor = async (key: string) => {
   if (!colors[key]) return
-  await tool.setColors({ [key]: rgbaToArray(colors[key]) })
+  await requestUE(tool.className, 'setColors', { [key]: rgbaToArray(colors[key]) })
 }
 
 // 从UE读取全部颜色
@@ -64,7 +63,7 @@ const loadColors = async () => {
   })
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return tool.finishTool()
+  if (isToolActive.value) return requestUE(tool.className, 'finishTool')
 })
 </script>
 

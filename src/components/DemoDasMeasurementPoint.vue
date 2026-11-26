@@ -1,36 +1,35 @@
 <script setup lang="ts">
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { onUEEvent, requestUE } from '../utils/demoRpc.js'
 import { inject, ref, onMounted, onBeforeUnmount } from 'vue'
 import { DasToolMeasurementPoint } from './lib/Tool/DasToolMeasurementPoint.js'
 
 const tool = new DasToolMeasurementPoint()
 const isToolActive = ref(false)
-const currentPoint = ref<any>(null)
+const currentPoint = ref<{ longitude: number; latitude: number; height: number } | null>(null)
 const pointsList = ref<any[]>([])
 
 const getShareData = inject<(key: string) => unknown>('getShareData')
+let stopPointUpdates: (() => void) | undefined
 onMounted(() => {
   if (!getShareData?.('viewerReady')) return
-  tool.addCallBack((obj: any) => {
-    if (![obj.longitude, obj.latitude, obj.height].every(Number.isFinite)) return
-    currentPoint.value = obj.longitude || obj.latitude || obj.height ? obj : null
+  stopPointUpdates = onUEEvent(tool.className, 'onMeasurementPointUpdate', point => {
+    const { longitude, latitude, height } = point
+    if (![longitude, latitude, height].every(Number.isFinite)) return
+    currentPoint.value = longitude || latitude || height ? { longitude, latitude, height } : null
   })
 })
 
-onBeforeUnmount(() => {
-  if (window.viewer) tool.removeCallBack()
-})
+onBeforeUnmount(() => stopPointUpdates?.())
 
 const startTool = async () => {
-  await tool.setToCurrent(() => {
-    isToolActive.value = true
-  })
+  await requestUE(tool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 const stopTool = async () => {
-  await tool.finishTool(() => {
-    isToolActive.value = false
-  })
+  await requestUE(tool.className, 'finishTool')
+  isToolActive.value = false
 }
 
 const getPoints = async () => {
@@ -40,13 +39,12 @@ const getPoints = async () => {
 }
 
 const clearPoints = async () => {
-  await tool.clearAllPoints(() => {
-    pointsList.value = []
-    currentPoint.value = null
-  })
+  await requestUE(tool.className, 'clearAllPoints')
+  pointsList.value = []
+  currentPoint.value = null
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return tool.finishTool()
+  if (isToolActive.value) return requestUE(tool.className, 'finishTool')
 })
 </script>
 

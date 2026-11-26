@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, type Component } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onErrorCaptured, onMounted, provide, ref, type Component } from 'vue'
+import { DemoRequestError } from '../utils/demoRpc.js'
 import WorkbenchIcon from './WorkbenchIcon.vue'
 import SceneViewport from './sence.vue'
 import ApiDemoCatalog from './ApiDemoCatalog.vue'
@@ -51,6 +52,15 @@ const result = ref('')
 const snippet = ref('')
 const showResult = ref(false)
 let lastCommand = ''
+
+onErrorCaptured((error, component) => {
+  if (!(error instanceof DemoRequestError)) return
+  if (component?.$el?.isConnected) {
+    result.value = error.message
+    showResult.value = true
+  }
+  return false
+})
 
 function selectExample(id: string) {
   if (!paths.has(id)) return

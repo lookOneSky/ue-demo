@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, onBeforeUnmount } from 'vue'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
@@ -14,10 +15,10 @@ const eventLogs = ref<{ time: string; type: string; shapeName: string; shapeID: 
 // 启动/停止点工具
 const toggleTool = async () => {
   if (isToolActive.value) {
-    await DasPointsTool.finishTool()
+    await requestUE(DasPointsTool.className, 'finishTool')
     isToolActive.value = false
   } else {
-    await DasPointsTool.setToCurrent()
+    await requestUE(DasPointsTool.className, 'setToCurrent')
     isToolActive.value = true
   }
 }
@@ -44,7 +45,7 @@ const registerShapes = async () => {
   console.log('[DemoDasInformerShape] 已注册 Shape IDs:', ids)
 
   // 停止工具
-  await DasPointsTool.finishTool()
+  await requestUE(DasPointsTool.className, 'finishTool')
   isToolActive.value = false
 
   // 添加进入/离开监听（set 会覆盖同 listenerID，只保留一份）
@@ -80,7 +81,7 @@ onBeforeUnmount(() => {
   DasInformerShape.removeShapeOutsideChangedListener(LISTENER_ID)
 })
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return DasPointsTool.finishTool()
+  if (isToolActive.value) return requestUE(DasPointsTool.className, 'finishTool')
 })
 </script>
 

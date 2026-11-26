@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { DasCameraRoamingCircleLayer } from "./lib/Layer/DasCameraRoamingCircleLayer.js"
 import { usePointPicking } from '../utils/usePointPicking'
+import { isUESuccess, requestUE } from '../utils/demoRpc.js'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 
 // 图层状态
@@ -195,7 +196,9 @@ const getOriginLLH = async () => {
   try {
     if (!currentLayer.value) return
     
-    const originLLH = await currentLayer.value.getOriginLLH()
+    const layer = currentLayer.value
+    const originLLH = await requestUE(layer.className, 'getOriginLLH', { id: layer.id })
+    if (currentLayer.value !== layer || ![originLLH.longitude, originLLH.latitude, originLLH.height].every(Number.isFinite)) return
     circleParams.value.longitude = originLLH.longitude
     circleParams.value.latitude = originLLH.latitude
     circleParams.value.height = originLLH.height
@@ -244,7 +247,7 @@ const toggleLayerVisibility = async () => {
     if (!currentLayer.value) return
     
     const visible = !layerVisible.value
-    await currentLayer.value.setVisible(visible)
+    if (!isUESuccess(await currentLayer.value.setVisible(visible))) return
     layerVisible.value = visible
   } catch (error) {
     console.error('切换图层可见性失败:', error)
@@ -256,7 +259,7 @@ const deleteLayer = async () => {
   try {
     if (!currentLayer.value) return
     
-    await currentLayer.value.removeInstance()
+    if (!isUESuccess(await currentLayer.value.removeInstance(undefined))) return
     layerVisible.value = true
     currentLayer.value = null
     isFlying.value = false

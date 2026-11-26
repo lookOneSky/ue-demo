@@ -4,6 +4,7 @@ import { usePointPicking } from '../utils/usePointPicking'
 import { DasPointsTool } from "./lib/Tool/DasPointsTool.js"
 import { DasUtilsCalCircleLook } from "./lib/Scene/DasUtilsCalCircleLook.js"
 import { Camera } from './lib/Scene/Camera.js'
+import { isCameraView, isLLH, type CameraView } from '../utils/cameraDemoView'
 
 // 工具状态
 const { isToolActive, changingTool, startTool, stopTool } = usePointPicking()
@@ -22,20 +23,19 @@ const distance = ref(1)
 const duration = ref(3)
 
 // 计算结果
-const lookResult = ref<any>(null)
+const lookResult = ref<CameraView | null>(null)
 
 // 取点工具第一点，计算位姿后飞入
 const flyToFirstPoint = async () => {
-  const info = await DasPointsTool.getAll()
-  const arrTarget = info?.posLLH
-  if (!arrTarget || arrTarget.length < 3) {
+  const arrTarget = await DasPointsTool.getPointPosition()
+  if (!isLLH(arrTarget)) {
     console.warn('请先在场景中拾取一个点')
     return
   }
 
   const arrCircle = [circleLLH.value.longitude, circleLLH.value.latitude, circleLLH.value.height]
   const objLook = await DasUtilsCalCircleLook.calcLookTransform(arrTarget, arrCircle, distance.value * 100)
-  if (!objLook.locationLLH || !objLook.rotationLLH) {
+  if (!isCameraView(objLook)) {
     console.warn('位姿计算失败')
     return
   }

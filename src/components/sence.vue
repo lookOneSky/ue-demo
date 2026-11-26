@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, onBeforeUnmount, onMounted, ref } from 'vue'
-import Viewer from './lib/Viewer.js'
+import { DemoViewer } from '../utils/demoViewer.js'
 import DasElectron from './lib/Scene/DasElectron.js'
 
 declare global {
@@ -17,7 +17,7 @@ const setShareData = inject<(key: string, value: unknown) => void>('setShareData
 const addHandler = inject<(handler: (message: { action: string; data: unknown }) => void) => () => void>('addHandler')
 const player = ref<HTMLElement>()
 const hasVideo = ref(false)
-let viewer: InstanceType<typeof Viewer>
+let viewer: DemoViewer
 let observer: ResizeObserver | undefined
 let unsubscribe: (() => void) | undefined
 let frame = 0
@@ -48,7 +48,7 @@ function resizePlayer() {
 
 onMounted(() => {
   const signalServer = import.meta.env.VITE_SIGNAL_SERVER_URL?.trim() || 'ws://127.0.0.1:6543'
-  viewer = new Viewer({ InputControllers: [], useUrlParams: false, hideDefaultUI: true, signalServer })
+  viewer = new DemoViewer({ InputControllers: [], useUrlParams: false, hideDefaultUI: true, signalServer })
   window.viewer = viewer
   player.value!.appendChild(viewer.rootElement)
   DasElectron.initListener()
@@ -73,8 +73,8 @@ onMounted(() => {
   player.value!.addEventListener('playing', event => {
     if (event.target instanceof HTMLVideoElement) { hasVideo.value = true; reportReady() }
   }, { capture: true, signal: listeners.signal })
-  viewer.addEventListener('ueCommand', event => emit('command', (event as CustomEvent).detail))
-  viewer.addEventListener('ueCommandError', event => emit('commandError', (event as CustomEvent).detail))
+  viewer.events.addEventListener('ueCommand', event => emit('command', (event as CustomEvent).detail), { signal: listeners.signal })
+  viewer.events.addEventListener('ueCommandError', event => emit('commandError', (event as CustomEvent).detail), { signal: listeners.signal })
   viewer.addResponseEventListener('ApiDemoWorkbench', (raw: string) => emit('response', raw))
   unsubscribe = addHandler?.(({ action, data }) => viewer.sendMessage({
     EventName: action, Params: typeof data === 'object' ? JSON.stringify(data) : data

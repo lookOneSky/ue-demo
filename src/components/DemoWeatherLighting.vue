@@ -1,6 +1,7 @@
 <script setup>
 import { watch } from 'vue'
 import { Weather } from './lib/Scene/Weather.js'
+import { requestUE } from '../utils/demoRpc.js'
 import { weatherForm as form } from './weatherForm'
 import WeatherSlider from './WeatherSlider.vue'
 
@@ -11,13 +12,13 @@ function formatTime(value) {
 }
 
 watch(() => form.timeOfDay, value => {
-  Weather.SetTimeOfDay(formatTime(value)).catch(console.error)
+  requestUE(Weather.className, 'SetTimeOfDay', { timeOfDay: formatTime(value) }).catch(console.error)
 })
 watch(() => form.sunAngle, value => {
-  Weather.SetSunAngle(value / 100 * 360).catch(console.error)
+  requestUE(Weather.className, 'SetSunAngle', { angle: value / 100 * 360 }).catch(console.error)
 })
 watch(() => form.sunIntensity, value => {
-  Weather.SetSunIntensity(4 + value * 0.06).catch(console.error)
+  requestUE(Weather.className, 'SetSunIntensity', { intensity: 4 + value * 0.06 }).catch(console.error)
 })
 watch(() => form.moonScale, value => {
   Weather.SetMoonSacle(value / 100 * 10).catch(console.error)

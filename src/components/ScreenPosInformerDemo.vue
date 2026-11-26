@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ScreenPosInformer } from './lib/Scene/ScreenPosInformer.js'
+import { onUEEvent, requestUE } from '../utils/demoRpc.js'
 
 interface RegisteredPoint {
   id: string
@@ -12,7 +13,9 @@ interface RegisteredPoint {
 const getShareData = inject<(key: string) => unknown>('getShareData')!
 const session = computed(() => getShareData('viewerSession'))
 const registeredPoints = ref<RegisteredPoint[]>([])
-const unsubscribe = new Map<string, () => void>()
+let unsubscribe: (() => void) | undefined
+let cancelFrame: (() => void) | undefined
+const pendingPositions = new Map<string, { screenPos: number[]; visible?: boolean }>()
 const isActive = ref(false)
 const clearing = ref(false)
 const selectedId = ref('')
@@ -73,39 +76,66 @@ function updatePoint(id: string, screenPos: number[], visible?: boolean) {
   }
 }
 
+function schedulePositions(payload: Record<string, unknown>) {
+  if (!Array.isArray(payload.points)) return
+  for (const point of payload.points) {
+    if (!registeredPoints.value.some(registered => registered.id === point?.pointId)) continue
+    const pos = point.screenPos
+    const xy = Array.isArray(pos) ? pos : [pos?.X, pos?.Y]
+    if (Number.isFinite(xy[0]) && Number.isFinite(xy[1])) {
+      pendingPositions.set(point.pointId, { screenPos: [xy[0], xy[1]], visible: point.isVisible })
+    }
+  }
+  if (cancelFrame || !pendingPositions.size) return
+  const deliver = () => {
+    cancelFrame = undefined
+    for (const [id, point] of pendingPositions) updatePoint(id, point.screenPos, point.visible)
+    pendingPositions.clear()
+  }
+  const video = document.querySelector<HTMLVideoElement>('#streamingVideo')
+  if (video?.requestVideoFrameCallback) {
+    const frame = video.requestVideoFrameCallback(deliver)
+    cancelFrame = () => video.cancelVideoFrameCallback(frame)
+  } else {
+    const frame = requestAnimationFrame(deliver)
+    cancelFrame = () => cancelAnimationFrame(frame)
+  }
+}
+
 async function registerPoint() {
   const startingSession = session.value
   if (!isActive.value || !startingSession || clearing.value) return
   const version = generation
   const { longitude, latitude, height } = pointParams.value
-  const id = await ScreenPosInformer.RegisterPoint(longitude, latitude, height)
-  if (!id || startingSession !== session.value) return
+  if (![longitude, latitude, height].every(Number.isFinite)) return
+  const { pointId: id } = await requestUE(ScreenPosInformer.className, 'RegisterPoint', { posLLH: [longitude, latitude, height] })
+  if (typeof id !== 'string' || !id || startingSession !== session.value) return
   if (version !== generation) {
-    await ScreenPosInformer.RemovePoint(id)
+    await requestUE(ScreenPosInformer.className, 'RemovePoint', { pointId: id })
     return
   }
   registeredPoints.value.push({ id, position: [longitude, latitude, height], screenPos: [0, 0], isVisible: false })
-  unsubscribe.set(id, ScreenPosInformer.addScreenPositionsChangedListener(id, point => {
-    updatePoint(id, point.screenPos, point.isVisible)
-  }))
+  unsubscribe ??= onUEEvent(ScreenPosInformer.className, 'screenPositionsChanged', schedulePositions)
 }
 
 async function removePoint(id: string) {
-  if (session.value && !await ScreenPosInformer.RemovePoint(id)) return
-  unsubscribe.get(id)?.()
-  unsubscribe.delete(id)
+  const owner = session.value
+  if (owner) await requestUE(ScreenPosInformer.className, 'RemovePoint', { pointId: id })
+  if (owner !== session.value) return
+  pendingPositions.delete(id)
   registeredPoints.value = registeredPoints.value.filter(point => point.id !== id)
+  if (!registeredPoints.value.length) releaseListeners()
   if (selectedId.value === id) closePopup()
 }
 
 async function clearAllPoints() {
-  generation++
+  const version = ++generation
   closePopup()
   clearing.value = true
   try {
     await Promise.all(registeredPoints.value.map(point => removePoint(point.id)))
   } finally {
-    clearing.value = false
+    if (version === generation) clearing.value = false
   }
 }
 
@@ -119,8 +149,11 @@ async function stopDemo() {
 }
 
 function releaseListeners() {
-  for (const stop of unsubscribe.values()) stop()
-  unsubscribe.clear()
+  unsubscribe?.()
+  unsubscribe = undefined
+  cancelFrame?.()
+  cancelFrame = undefined
+  pendingPositions.clear()
 }
 
 watch(session, () => {
@@ -128,6 +161,7 @@ watch(session, () => {
   releaseListeners()
   closePopup()
   registeredPoints.value = []
+  clearing.value = false
   isActive.value = false
 }, { flush: 'sync' })
 

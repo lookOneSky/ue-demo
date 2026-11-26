@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { requestUE } from '../utils/demoRpc.js'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementArea } from './lib/Tool/DasToolMeasurementArea.js'
 
@@ -32,9 +33,8 @@ const arrayToRgba = (c: number[]) =>
   `rgba(${Math.round(c[0] * 255)}, ${Math.round(c[1] * 255)}, ${Math.round(c[2] * 255)}, ${c[3] ?? 1})`
 
 const startTool = async () => {
-  await tool.setToCurrent(() => {
-    isToolActive.value = true
-  })
+  await requestUE(tool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 const getPoints = async () => {
@@ -45,19 +45,18 @@ const getPoints = async () => {
 }
 
 const clearPoints = async () => {
-  await tool.clearAllPoints(() => {
-    pointsList.value = []
-    isToolActive.value = false
-    accurateResult.value = null
-  })
+  await requestUE(tool.className, 'clearAllPoints')
+  pointsList.value = []
+  isToolActive.value = false
+  accurateResult.value = null
 }
 
 const calcAreaAccurate = async () => {
   accurateLoading.value = true
   try {
-    await tool.calcAreaAccurate()
+    await requestUE(tool.className, 'calcAreaAccurate')
     await tool.getAccurateResult((result: any) => {
-      accurateResult.value = result || null
+      accurateResult.value = Number.isFinite(result?.areaM2) ? result : null
     })
   } finally {
     accurateLoading.value = false
@@ -65,15 +64,14 @@ const calcAreaAccurate = async () => {
 }
 
 const clearAccurateResult = async () => {
-  await tool.clearAccurateResult(() => {
-    accurateResult.value = null
-  })
+  await requestUE(tool.className, 'clearAccurateResult')
+  accurateResult.value = null
 }
 
 // 设置单个颜色
 const setColor = async (key: string) => {
   if (!colors[key]) return
-  await tool.setColors({ [key]: rgbaToArray(colors[key]) })
+  await requestUE(tool.className, 'setColors', { [key]: rgbaToArray(colors[key]) })
 }
 
 // 从UE读取全部样式
@@ -87,7 +85,7 @@ const loadStyle = async () => {
   await tool.getShowClipMesh((result: any) => { lineStyle.showClipMesh = result?.showClipMesh ?? lineStyle.showClipMesh })
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return tool.finishTool()
+  if (isToolActive.value) return requestUE(tool.className, 'finishTool')
 })
 </script>
 
@@ -142,16 +140,16 @@ onViewerSessionLeave(() => {
         <el-color-picker v-model="colors[o.key]" show-alpha color-format="rgb" @change="setColor(o.key)"></el-color-picker>
       </el-form-item>
       <el-form-item label="线条粗细">
-        <el-input-number v-model="lineStyle.thickness" :min="1" :step="1" @change="tool.setLineThickness(lineStyle.thickness)"></el-input-number>
+        <el-input-number v-model="lineStyle.thickness" :min="1" :step="1" @change="requestUE(tool.className, 'setLineThickness', { thickness: lineStyle.thickness })"></el-input-number>
       </el-form-item>
       <el-form-item label="遮挡线透明度">
-        <el-slider v-model="lineStyle.ghostAlpha" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="tool.setGhostLineAlpha(lineStyle.ghostAlpha)"></el-slider>
+        <el-slider v-model="lineStyle.ghostAlpha" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="requestUE(tool.className, 'setGhostLineAlpha', { ghostAlpha: lineStyle.ghostAlpha })"></el-slider>
       </el-form-item>
       <el-form-item label="显示标签">
-        <el-switch v-model="lineStyle.showLabels" @change="tool.setShowLabels(lineStyle.showLabels)"></el-switch>
+        <el-switch v-model="lineStyle.showLabels" @change="requestUE(tool.className, 'setShowLabels', { showLabels: lineStyle.showLabels })"></el-switch>
       </el-form-item>
       <el-form-item label="显示裁剪面">
-        <el-switch v-model="lineStyle.showClipMesh" @change="tool.setShowClipMesh(lineStyle.showClipMesh)"></el-switch>
+        <el-switch v-model="lineStyle.showClipMesh" @change="requestUE(tool.className, 'setShowClipMesh', { showClipMesh: lineStyle.showClipMesh })"></el-switch>
       </el-form-item>
       <el-button size="small" @click="loadStyle">读取当前样式</el-button>
     </div>

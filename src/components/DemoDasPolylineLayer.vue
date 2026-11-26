@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, shallowRef, watch } from 'vue'
 import { DasPolylineLayer } from './lib/Layer/DasPolylineLayer.js'
 import { DasGroupLayer } from './lib/Layer/DasGroupLayer.js'
 import PolylineStrokeFields from './PolylineStrokeFields.vue'
+import { isUESuccess } from '../utils/demoRpc.js'
 import { createLayerStyle, usePolylineDemo } from '../utils/usePolylineDemo'
 
 const { ready, lastLayerId, drafts, selectExample, status, run } = usePolylineDemo()
@@ -26,7 +27,7 @@ async function refreshLayers() {
   busy.value = true
   try {
     const root = await DasGroupLayer.getRoot()
-    if (request !== revision) return
+    if (request !== revision || !root?.id) return
     const children = await root.getAllLayer()
     if (request !== revision) return
     const found = await Promise.all(children.map(async child => {
@@ -48,7 +49,7 @@ async function deleteLayer() {
   const request = ++revision
   busy.value = true
   try {
-    await layer.removeInstance()
+    if (!isUESuccess(await layer.removeInstance())) throw new Error('UE 删除多段线图层失败。')
     drafts.delete(layer.id)
     if (request !== revision) return
     layers.value = layers.value.filter(item => item.id !== layer.id)

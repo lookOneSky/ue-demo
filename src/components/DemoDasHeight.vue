@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onUnmounted } from 'vue'
 import Scene from './lib/Scene/Scene.js'
+import { onUEEvent, requestUE } from '../utils/demoRpc.js'
 import { DasPointsLayer } from './lib/Layer/DasPointsLayer.js'
 
 // 单点查询
@@ -14,6 +15,8 @@ const handleGetHeight = async () => {
   singleResult.value = null
   try {
     singleResult.value = await Scene.getHeightAtLongLat(longitude.value, latitude.value)
+  } catch {
+    singleResult.value = { success: false, height: 0 }
   } finally {
     singleLoading.value = false
   }
@@ -81,6 +84,7 @@ const points = ref<PointItem[]>([
 
 const batchLoading = ref(false)
 const batchDone = ref(false)
+const batchError = ref('')
 const currentLayer = ref<any>(null)
 const layerLoading = ref(false)
 
@@ -89,20 +93,24 @@ let unsubscribe: (() => void) | null = null
 const handleBatchQuery = async () => {
   batchLoading.value = true
   batchDone.value = false
+  batchError.value = ''
   currentLayer.value = null
   points.value.forEach(p => { p.height = null; p.success = null })
 
   if (unsubscribe) { unsubscribe(); unsubscribe = null }
 
-  unsubscribe = Scene.onPointsHeightResult((data: { points: { longitude: number; latitude: number; height: number; success: boolean }[] }) => {
-    if (!data?.points) return
+  unsubscribe = onUEEvent(Scene.className, 'pointsHeightResult', data => {
+    if (!Array.isArray(data.points)) return
     const EPS = 1e-6
     data.points.forEach(item => {
       const p = points.value.find(p =>
         Math.abs(p.longitude - item.longitude) < EPS &&
         Math.abs(p.latitude - item.latitude) < EPS
       )
-      if (p) { p.height = item.height; p.success = item.success }
+      if (p) {
+        p.height = Number.isFinite(item.height) ? item.height : null
+        p.success = item.success === true && p.height !== null
+      }
     })
     batchLoading.value = false
     batchDone.value = true
@@ -110,12 +118,14 @@ const handleBatchQuery = async () => {
   })
 
   try {
-    await Scene.getPointsHeightAsync(points.value.map(p => ({ longitude: p.longitude, latitude: p.latitude })))
+    await requestUE(Scene.className, 'getPointsHeightAsync', {
+      points: points.value.map(p => ({ longitude: p.longitude, latitude: p.latitude })),
+    })
   } catch (error) {
     unsubscribe?.()
     unsubscribe = null
     batchLoading.value = false
-    throw error
+    batchError.value = error instanceof Error ? error.message : String(error)
   }
 }
 
@@ -180,6 +190,7 @@ onUnmounted(() => {
         </tbody>
       </table>
       <el-button class="btn" :loading="batchLoading" @click="handleBatchQuery">批量查询</el-button>
+      <p v-if="batchError" class="fail" role="status">{{ batchError }}</p>
       <el-button v-if="batchDone" class="btn" :disabled="!points.some(point => point.success)" :loading="layerLoading" @click="createPointsLayer">创建图层</el-button>
       <div v-if="batchDone" class="result">
         <span v-if="currentLayer" class="success">图层已创建：{{ currentLayer.id }}</span>

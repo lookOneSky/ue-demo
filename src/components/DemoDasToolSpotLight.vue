@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
 import { ref, watch } from 'vue'
 import { DasToolSpotLight } from './lib/Tool/DasToolSpotLight.js'
@@ -35,10 +36,10 @@ const formatTime = (val: number): string => {
 // 启动工具
 const startTool = async () => {
   try {
-    await spotLightTool.setToCurrent()
+    await requestUE(spotLightTool.className, 'setToCurrent')
     isToolActive.value = true
     // 自动设置为晚上
-    await Weather.SetTimeOfDay(formatTime(timeValue.value))
+    await requestUE(Weather.className, 'SetTimeOfDay', { timeOfDay: formatTime(timeValue.value) })
     console.log('聚光灯工具已启动，时间设置为:', formatTime(timeValue.value))
   } catch (error) {
     console.error('启动聚光灯工具失败:', error)
@@ -48,7 +49,7 @@ const startTool = async () => {
 // 停止工具
 const stopTool = async () => {
   try {
-    await spotLightTool.finishTool()
+    await requestUE(spotLightTool.className, 'finishTool')
     isToolActive.value = false
     console.log('聚光灯工具已停止')
   } catch (error) {
@@ -59,7 +60,7 @@ const stopTool = async () => {
 // 时间变化监听
 watch(timeValue, (val) => {
   if (isToolActive.value) {
-    Weather.SetTimeOfDay(formatTime(val))
+    return requestUE(Weather.className, 'SetTimeOfDay', { timeOfDay: formatTime(val) })
   }
 })
 
@@ -67,7 +68,7 @@ watch(timeValue, (val) => {
 const updateIntensity = async () => {
   if (!isToolActive.value) return
   try {
-    await spotLightTool.setLightIntensity(lightParams.value.intensity)
+    await requestUE(spotLightTool.className, 'setLightIntensity', { lightIntensity: lightParams.value.intensity })
   } catch (error) {
     console.error('更新亮度失败:', error)
   }
@@ -77,7 +78,7 @@ const updateIntensity = async () => {
 const updateColor = async () => {
   if (!isToolActive.value) return
   try {
-    await spotLightTool.setLightColor({ ...lightParams.value.color })
+    await requestUE(spotLightTool.className, 'setLightColor', { lightColor: { ...lightParams.value.color } })
   } catch (error) {
     console.error('更新颜色失败:', error)
   }
@@ -87,7 +88,7 @@ const updateColor = async () => {
 const updateDistance = async () => {
   if (!isToolActive.value) return
   try {
-    await spotLightTool.setLightDistance(lightParams.value.distance)
+    await requestUE(spotLightTool.className, 'setLightDistance', { lightDistance: lightParams.value.distance })
   } catch (error) {
     console.error('更新距离失败:', error)
   }
@@ -97,7 +98,7 @@ const updateDistance = async () => {
 const updateRadius = async () => {
   if (!isToolActive.value) return
   try {
-    await spotLightTool.setLightRadius(lightParams.value.radius)
+    await requestUE(spotLightTool.className, 'setLightRadius', { lightRadius: lightParams.value.radius })
   } catch (error) {
     console.error('更新半径失败:', error)
   }
@@ -112,7 +113,7 @@ watch(() => lightParams.value.distance, updateDistance)
 // 半径变化监听
 watch(() => lightParams.value.radius, updateRadius)
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return spotLightTool.finishTool()
+  if (isToolActive.value) return requestUE(spotLightTool.className, 'finishTool')
 })
 </script>
 

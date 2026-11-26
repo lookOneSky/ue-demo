@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { requestUE } from '../utils/demoRpc.js'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementAngle } from './lib/Tool/DasToolMeasurementAngle.js'
 
@@ -37,16 +38,14 @@ const arrayToRgba = (c: number[]) =>
 
 // 激活工具，依次单击边点、角点、另一边点
 const startTool = async () => {
-  await tool.setToCurrent(() => {
-    isToolActive.value = true
-  })
+  await requestUE(tool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 // 停止工具
 const stopTool = async () => {
-  await tool.finishTool(() => {
-    isToolActive.value = false
-  })
+  await requestUE(tool.className, 'finishTool')
+  isToolActive.value = false
 }
 
 // 获取测量点与夹角
@@ -55,22 +54,21 @@ const getResult = async () => {
     pointsList.value = result?.pointsLLH || []
   })
   await tool.getAngle((result: any) => {
-    angleResult.value = result || null
+    angleResult.value = result?.valid && Number.isFinite(result.angleDeg) ? result : { valid: false, angleDeg: 0 }
   })
 }
 
 // 清空测量点与夹角结果
 const clearPoints = async () => {
-  await tool.clearAllPoints(() => {
-    pointsList.value = []
-    angleResult.value = null
-  })
+  await requestUE(tool.className, 'clearAllPoints')
+  pointsList.value = []
+  angleResult.value = null
 }
 
 // 设置单个颜色（sideLineColor、arcLineColor、labelBackgroundColor 也走 setColors）
 const setColor = async (key: string) => {
   if (!colors[key]) return
-  await tool.setColors({ [key]: rgbaToArray(colors[key]) })
+  await requestUE(tool.className, 'setColors', { [key]: rgbaToArray(colors[key]) })
 }
 
 // 从 UE 读取颜色、线条、标签与圆弧样式
@@ -89,7 +87,7 @@ const loadStyle = async () => {
   await tool.getLabelPixelOffset((result: any) => { lineStyle.labelPixelOffset = result?.labelPixelOffset ?? lineStyle.labelPixelOffset })
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return tool.finishTool()
+  if (isToolActive.value) return requestUE(tool.className, 'finishTool')
 })
 </script>
 
@@ -127,31 +125,31 @@ onViewerSessionLeave(() => {
         <el-color-picker v-model="colors[o.key]" show-alpha color-format="rgb" @change="setColor(o.key)"></el-color-picker>
       </el-form-item>
       <el-form-item label="线条粗细">
-        <el-input-number v-model="lineStyle.thickness" :min="1" :step="1" @change="tool.setLineThickness(lineStyle.thickness)"></el-input-number>
+        <el-input-number v-model="lineStyle.thickness" :min="1" :step="1" @change="requestUE(tool.className, 'setLineThickness', { thickness: lineStyle.thickness })"></el-input-number>
       </el-form-item>
       <el-form-item label="遮挡线透明度">
-        <el-slider v-model="lineStyle.ghostAlpha" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="tool.setGhostLineAlpha(lineStyle.ghostAlpha)"></el-slider>
+        <el-slider v-model="lineStyle.ghostAlpha" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="requestUE(tool.className, 'setGhostLineAlpha', { ghostAlpha: lineStyle.ghostAlpha })"></el-slider>
       </el-form-item>
       <el-form-item label="遮挡线虚线">
-        <el-switch v-model="lineStyle.ghostDashed" @change="tool.setGhostLineDashed(lineStyle.ghostDashed)"></el-switch>
+        <el-switch v-model="lineStyle.ghostDashed" @change="requestUE(tool.className, 'setGhostLineDashed', { ghostDashed: lineStyle.ghostDashed })"></el-switch>
       </el-form-item>
       <el-form-item label="可见线虚线">
-        <el-switch v-model="lineStyle.solidDashed" @change="tool.setSolidLineDashed(lineStyle.solidDashed)"></el-switch>
+        <el-switch v-model="lineStyle.solidDashed" @change="requestUE(tool.className, 'setSolidLineDashed', { solidDashed: lineStyle.solidDashed })"></el-switch>
       </el-form-item>
       <el-form-item label="显示标签">
-        <el-switch v-model="lineStyle.showLabels" @change="tool.setShowLabels(lineStyle.showLabels)"></el-switch>
+        <el-switch v-model="lineStyle.showLabels" @change="requestUE(tool.className, 'setShowLabels', { showLabels: lineStyle.showLabels })"></el-switch>
       </el-form-item>
       <el-form-item label="显示圆弧">
-        <el-switch v-model="lineStyle.showArc" @change="tool.setShowArc(lineStyle.showArc)"></el-switch>
+        <el-switch v-model="lineStyle.showArc" @change="requestUE(tool.className, 'setShowArc', { showArc: lineStyle.showArc })"></el-switch>
       </el-form-item>
       <el-form-item label="圆弧半径比例">
-        <el-slider v-model="lineStyle.arcRadiusRatio" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="tool.setArcRadiusRatio(lineStyle.arcRadiusRatio)"></el-slider>
+        <el-slider v-model="lineStyle.arcRadiusRatio" :min="0" :max="1" :step="0.05" style="width: 200px;" @change="requestUE(tool.className, 'setArcRadiusRatio', { arcRadiusRatio: lineStyle.arcRadiusRatio })"></el-slider>
       </el-form-item>
       <el-form-item label="圆弧分段数">
-        <el-input-number v-model="lineStyle.arcSegmentCount" :min="1" :step="1" @change="tool.setArcSegmentCount(lineStyle.arcSegmentCount)"></el-input-number>
+        <el-input-number v-model="lineStyle.arcSegmentCount" :min="1" :step="1" @change="requestUE(tool.className, 'setArcSegmentCount', { arcSegmentCount: lineStyle.arcSegmentCount })"></el-input-number>
       </el-form-item>
       <el-form-item label="标签像素偏移">
-        <el-input-number v-model="lineStyle.labelPixelOffset" :min="0" :step="1" @change="tool.setLabelPixelOffset(lineStyle.labelPixelOffset)"></el-input-number>
+        <el-input-number v-model="lineStyle.labelPixelOffset" :min="0" :step="1" @change="requestUE(tool.className, 'setLabelPixelOffset', { labelPixelOffset: lineStyle.labelPixelOffset })"></el-input-number>
       </el-form-item>
       <el-button size="small" @click="loadStyle">读取当前样式</el-button>
     </div>

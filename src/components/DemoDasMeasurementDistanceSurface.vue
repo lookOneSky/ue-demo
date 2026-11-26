@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onViewerSessionLeave } from '../utils/onViewerSessionLeave'
+import { requestUE } from '../utils/demoRpc.js'
 import { ref, reactive } from 'vue'
 import { DasToolMeasurementDistanceSurface } from './lib/Tool/DasToolMeasurementDistanceSurface.js'
 
@@ -32,9 +33,8 @@ const arrayToRgba = (c: number[]) =>
 
 // 激活工具，单击取点，双击结束
 const startTool = async () => {
-  await tool.setToCurrent(() => {
-    isToolActive.value = true
-  })
+  await requestUE(tool.className, 'setToCurrent')
+  isToolActive.value = true
 }
 
 // 获取测量点
@@ -47,20 +47,19 @@ const getPoints = async () => {
 
 // 清空测量点与表面结果
 const clearPoints = async () => {
-  await tool.clearAllPoints(() => {
-    pointsList.value = []
-    isToolActive.value = false
-    surfaceResult.value = null
-  })
+  await requestUE(tool.className, 'clearAllPoints')
+  pointsList.value = []
+  isToolActive.value = false
+  surfaceResult.value = null
 }
 
 // 表面测量：触发计算后读取结果
 const calcSurfaceDistance = async () => {
   surfaceLoading.value = true
   try {
-    await tool.calcSurfaceDistance()
+    await requestUE(tool.className, 'calcSurfaceDistance')
     await tool.getSurfaceResult((result: any) => {
-      surfaceResult.value = result || null
+      surfaceResult.value = Number.isFinite(result?.surfaceDistanceM) ? result : null
     })
   } finally {
     surfaceLoading.value = false
@@ -69,15 +68,14 @@ const calcSurfaceDistance = async () => {
 
 // 清空表面测量结果与描边折线
 const clearSurfaceResult = async () => {
-  await tool.clearSurfaceResult(() => {
-    surfaceResult.value = null
-  })
+  await requestUE(tool.className, 'clearSurfaceResult')
+  surfaceResult.value = null
 }
 
 // 设置单个颜色（surfaceLineColor 和 surfaceLabelBackgroundColor 也走 setColors）
 const setColor = async (key: string) => {
   if (!colors[key]) return
-  await tool.setColors({ [key]: rgbaToArray(colors[key]) })
+  await requestUE(tool.className, 'setColors', { [key]: rgbaToArray(colors[key]) })
 }
 
 // 从 UE 读取颜色、采样间距和表面线显隐
@@ -89,7 +87,7 @@ const loadStyle = async () => {
   await tool.getShowSurfaceLine((result: any) => { surfaceStyle.showSurfaceLine = result?.showSurfaceLine ?? surfaceStyle.showSurfaceLine })
 }
 onViewerSessionLeave(() => {
-  if (isToolActive.value) return tool.finishTool()
+  if (isToolActive.value) return requestUE(tool.className, 'finishTool')
 })
 </script>
 
@@ -134,10 +132,10 @@ onViewerSessionLeave(() => {
         <el-color-picker v-model="colors[o.key]" show-alpha color-format="rgb" @change="setColor(o.key)"></el-color-picker>
       </el-form-item>
       <el-form-item label="采样间距(m)">
-        <el-input-number v-model="surfaceStyle.sampleDistanceM" :min="0.001" :step="0.01" :precision="3" @change="tool.setSampleDistance(surfaceStyle.sampleDistanceM)"></el-input-number>
+        <el-input-number v-model="surfaceStyle.sampleDistanceM" :min="0.001" :step="0.01" :precision="3" @change="requestUE(tool.className, 'setSampleDistance', { sampleDistanceM: surfaceStyle.sampleDistanceM })"></el-input-number>
       </el-form-item>
       <el-form-item label="显示表面线">
-        <el-switch v-model="surfaceStyle.showSurfaceLine" @change="tool.setShowSurfaceLine(surfaceStyle.showSurfaceLine)"></el-switch>
+        <el-switch v-model="surfaceStyle.showSurfaceLine" @change="requestUE(tool.className, 'setShowSurfaceLine', { showSurfaceLine: surfaceStyle.showSurfaceLine })"></el-switch>
       </el-form-item>
       <el-button size="small" @click="loadStyle">读取当前样式</el-button>
     </div>

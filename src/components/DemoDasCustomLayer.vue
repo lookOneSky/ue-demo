@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { DasCustomLayer } from './lib/Layer/DasCustomLayer.js'
 import { DasGizmosOperateTool } from './lib/Tool/DasGizmosOperateTool.js'
+import { isUESuccess } from '../utils/demoRpc.js'
 
 const assetOptions = [
   { label: 'Guide', value: 'Guide' }
@@ -33,7 +34,7 @@ const createAndEditLayer = async () => {
       }
     })
 
-    if (!layer) return
+    if (!layer?.id) return
 
     activeLayer.value = layer
     currentAssetName.value = selectedAssetName.value
@@ -52,14 +53,10 @@ const createComplexLayerFromCurrent = async () => {
   try {
     const assetName = await activeLayer.value.getCurrentAssetName()
     const transform = await activeLayer.value.getWorldTransform()
-    const layer = await DasCustomLayer.createInstance({
-      param: {
-        assetName,
-        transform
-      }
-    })
+    const param = { assetName, transform }
+    const layer = await DasCustomLayer.createInstance({ param })
 
-    if (!layer) return
+    if (!layer?.id) return
 
     complexLayers.value.push(layer)
     currentAssetName.value = assetName
@@ -88,10 +85,10 @@ const clearAll = async () => {
   try {
     await DasGizmosOperateTool.setOperateType(0)
     for (const layer of [...complexLayers.value]) {
-      await layer.removeInstance()
+      if (!isUESuccess(await layer.removeInstance())) continue
       complexLayers.value = complexLayers.value.filter(item => item !== layer)
     }
-    if (activeLayer.value) await activeLayer.value.removeInstance()
+    if (activeLayer.value && !isUESuccess(await activeLayer.value.removeInstance())) return
     activeLayer.value = null
     selectedAssetName.value = defaultAssetName
     currentAssetName.value = defaultAssetName

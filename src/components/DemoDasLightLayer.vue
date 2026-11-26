@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { requestUE } from '../utils/demoRpc.js'
 import { ref, watch } from 'vue'
 import { DasLightPointLayer } from "./lib/Layer/DasLightPointLayer.js"
 import { DasLightTorchLayer } from "./lib/Layer/DasLightTorchLayer.js"
@@ -111,14 +112,14 @@ const updateColor = async () => {
 
 // 设置时间
 watch(timeValue, (val) => {
-  Weather.SetTimeOfDay(formatTime(val))
+  return requestUE(Weather.className, 'SetTimeOfDay', { timeOfDay: formatTime(val) })
 })
 
 // 清空所有
 const clearAll = async () => {
   await DasGizmosOperateTool.setOperateType(0)
   for (const layer of [...createdLayers.value].reverse()) {
-    await layer.removeInstance()
+    await requestUE(layer.className, 'removeInstance', { id: layer.id })
     createdLayers.value = createdLayers.value.filter(item => item !== layer)
     if (activeLayer.value === layer) activeLayer.value = null
   }
